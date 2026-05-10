@@ -28,7 +28,9 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (originalRequest.url === '/auth/refresh') {
-        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+        const publicPages = ['/', '/login', '/register'];
+        const isPublic = publicPages.includes(window.location.pathname) || window.location.pathname.startsWith('/respond');
+        if (!isPublic) {
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -55,7 +57,9 @@ api.interceptors.response.use(
       } catch (err) {
         isRefreshing = false;
         processQueue(err);
-        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+        const publicPages = ['/', '/login', '/register'];
+        const isPublic = publicPages.includes(window.location.pathname) || window.location.pathname.startsWith('/respond');
+        if (!isPublic) {
           window.location.href = '/login';
         }
         return Promise.reject(err);
