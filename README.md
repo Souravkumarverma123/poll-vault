@@ -34,9 +34,9 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 - **CLI Seeder**: Included developer script to instantly promote any user to an admin via the terminal.
 
 ### 🛡️ Enterprise-Grade Security & Anti-Abuse
-- **`httpOnly` Cookies**: Authentication is handled entirely via secure, HTTP-only cookies to prevent XSS attacks. No JWTs in `localStorage`.
+- **Access & Refresh Tokens**: Robust authentication architecture utilizing short-lived (15m) access tokens and long-lived (2d) refresh tokens, both stored exclusively as secure `httpOnly` cookies to prevent XSS attacks. Includes a seamless, silent background refresh mechanism via an Axios interceptor.
 - **Server-Side Fingerprinting**: Anonymous polls use a robust SHA-256 hash of the respondent's `IP` and `User-Agent` to prevent duplicate submissions and ballot stuffing. Enforced via MongoDB compound unique indexes.
-- **Environment-Aware Rate Limiting**: Dedicated rate limiters for authentication, submissions, and general API requests to protect against brute-force and DDoS attacks.
+- **Environment-Aware Rate Limiting**: Dedicated rate limiters for authentication (protecting login/register endpoints), submissions, and general API requests. Properly configured for reverse proxies (`trust proxy`) to protect against brute-force and DDoS attacks.
 - **Helmet & CORS**: Strict Content Security Policies (CSP) and Cross-Origin Resource Sharing rules.
 - **Data Lifecycle Management**: MongoDB Time-To-Live (TTL) indexes automatically purge abandoned responses 30 days after submission to prevent unbounded database growth.
 
@@ -142,7 +142,7 @@ npm run dev
 - Backend: [http://localhost:5000](http://localhost:5000)
 
 ### 4. Run Tests
-The backend includes Jest unit tests for core utilities and status calculations.
+The backend includes Jest and Supertest integration tests for authentication flows, cookie generation, and rate limiting.
 ```bash
 cd server
 npm test
@@ -186,7 +186,7 @@ docker run -p 8000:8000 --env-file .env poll-vault-prod
 - **Real-Time**: Socket.IO (v4).
 - **Security**: `bcryptjs`, `jsonwebtoken`, `helmet`, `express-rate-limit`, `cookie-parser`.
 - **Validation**: `express-validator`.
-- **Testing**: `jest`.
+- **Testing**: `jest`, `supertest`, `mongodb-memory-server`.
 
 ---
 
