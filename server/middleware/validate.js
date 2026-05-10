@@ -86,15 +86,28 @@ const validatePoll = [
 ];
 
 // Response submission validation
+// NOTE: We intentionally do NOT validate selectedOption/selectedOptions/textAnswer
+// at the middleware layer because the required field depends on questionType,
+// which is stored in the DB (not in the request body). The controller (submitResponse)
+// performs the correct per-type validation with full question context.
 const validateResponse = [
   body('answers')
     .isArray({ min: 1 }).withMessage('At least one answer is required'),
   body('answers.*.questionId')
     .notEmpty().withMessage('Question ID is required')
-    .isMongoId().withMessage('Invalid question ID'),
-  body('answers.*.selectedOption')
-    .trim()
-    .notEmpty().withMessage('Selected option is required'),
+    .isMongoId().withMessage('Invalid question ID format'),
+  // Each answer must supply at least one of the three answer fields — the
+  // controller enforces the per-type rules once it has loaded the poll.
+  body('answers.*').custom((answer) => {
+    const hasField =
+      answer.selectedOption != null ||
+      (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length >= 0) ||
+      answer.textAnswer != null;
+    if (!hasField) {
+      throw new Error('Each answer must include selectedOption, selectedOptions, or textAnswer');
+    }
+    return true;
+  }),
   handleValidation,
 ];
 

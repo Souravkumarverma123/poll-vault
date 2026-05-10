@@ -18,13 +18,14 @@ const register = async (req, res, next) => {
 
     const user = await User.create({ name, email, password });
     const token = generateToken(user._id);
-    setTokenCookie(res, token);
+    setTokenCookie(res, token); // httpOnly cookie — JS cannot access this
 
     res.status(201).json({
       success: true,
       data: {
         user: { _id: user._id, name: user.name, email: user.email },
-        token, // also returned in body for socket auth
+        // token intentionally NOT returned in body — use httpOnly cookie only.
+        // Socket.IO reads the cookie from the handshake headers automatically.
       },
     });
   } catch (error) {
@@ -50,13 +51,14 @@ const login = async (req, res, next) => {
     }
 
     const token = generateToken(user._id);
-    setTokenCookie(res, token);
+    setTokenCookie(res, token); // httpOnly cookie — JS cannot access this
 
     res.json({
       success: true,
       data: {
         user: { _id: user._id, name: user.name, email: user.email },
-        token, // also returned for socket auth
+        // token intentionally NOT returned in body — use httpOnly cookie only.
+        // Socket.IO reads the cookie from the handshake headers automatically.
       },
     });
   } catch (error) {

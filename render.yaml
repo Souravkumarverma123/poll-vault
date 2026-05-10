@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: pollvault
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/polls/public/nonexistent
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: MONGODB_URI
+        sync: false # Requires manual entry in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: "https://pollvault.onrender.com" # Replace with actual Render URL if different

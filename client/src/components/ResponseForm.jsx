@@ -49,6 +49,14 @@ export default function ResponseForm({ questions, onSubmit, loading }) {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      
+      // Scroll to the first error
+      const firstErrorId = Object.keys(newErrors)[0];
+      const element = document.getElementById(`question-${firstErrorId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
       return;
     }
 

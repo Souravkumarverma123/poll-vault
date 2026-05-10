@@ -4,11 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSocket } from '@/context/SocketContext';
 import { getAnalytics } from '@/api/polls';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+// Chart.js components are registered globally in src/lib/chartSetup.js (imported in main.jsx)
 import { Users, TrendingUp, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const CHART_COLORS = [
   'rgba(99, 102, 241, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(34, 197, 94, 0.8)',
@@ -37,22 +35,33 @@ export default function LiveAnalytics({ pollId }) {
     fetchData();
   }, [pollId]);
 
-  // Use singleton socket — join room, listen for updates
+  // Use singleton socket — join room, listen for live analytics updates.
+  // Design notes:
+  //  1. joinedRef guards against emitting join:poll twice on the same connection
+  //     (once from the connected-state check + once from the 'connect' listener).
+  //  2. On reconnect, Socket.IO fires 'connect' again — joinedRef is reset in the
+  //     cleanup so the new connection correctly re-joins the room.
   useEffect(() => {
-    if (!socket) return; // server not connected yet — will re-run when socket is ready
+    if (!socket) return;
 
-    const handleConnect = () => {
+    const joinRoom = () => {
       if (!joinedRef.current) {
         socket.emit('join:poll', { pollId });
         joinedRef.current = true;
       }
     };
 
+    // Re-join on every reconnect (Socket.IO fires 'connect' on each reconnect)
+    const handleReconnectJoin = () => {
+      joinedRef.current = false; // reset so joinRoom() emits again
+      joinRoom();
+    };
+
     const handleNewResponse = (payload) => {
       setData((prev) => {
         if (!prev) return prev;
         const updatedQuestions = prev.questions.map((q) => {
-          if (q.questionType === 'text') return q; // text answers not aggregated in real-time
+          if (q.questionType === 'text') return q; // text not aggregated in real-time
           const stats = payload.questionStats.find((s) => s.questionId === q._id);
           if (!stats) return q;
           return {
@@ -67,22 +76,21 @@ export default function LiveAnalytics({ pollId }) {
       });
     };
 
-    // If already connected, join immediately
+    // If already connected, join immediately; otherwise wait for 'connect'
     if (socket.connected) {
-      handleConnect();
-    } else {
-      socket.on('connect', handleConnect);
+      joinRoom();
     }
-
+    socket.on('connect', handleReconnectJoin);
     socket.on('response:new', handleNewResponse);
 
     return () => {
-      socket.off('connect', handleConnect);
+      socket.off('connect', handleReconnectJoin);
       socket.off('response:new', handleNewResponse);
       socket.emit('leave:poll', { pollId });
-      joinedRef.current = false;
+      joinedRef.current = false; // reset so a future mount re-joins correctly
     };
   }, [socket, pollId]);
+
 
   if (loading) {
     return (

@@ -3,13 +3,7 @@ const Poll = require('../models/Poll');
 const Response = require('../models/Response');
 const { nanoid } = require('nanoid');
 const { getIO } = require('../socket/socketHandler');
-
-// ── Helper: server-side fingerprint (IP + UA hash) ───────────────────────────
-const generateFingerprint = (req) => {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  return crypto.createHash('sha256').update(`${ip}::${ua}`).digest('hex');
-};
+const { generateFingerprint, computeStatus } = require('../utils/helpers');
 
 // ── Helper: aggregate analytics for a poll ───────────────────────────────────
 const aggregateAnalytics = async (pollId) => {
@@ -90,13 +84,16 @@ const getMyPolls = async (req, res, next) => {
     const sort = req.query.sort || 'newest';
     const statusFilter = req.query.status || '';
 
-    const query = { creator: req.user._id };
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ];
-    }
+    const baseQuery = { creator: req.user._id };
+    const searchQuery = search
+      ? {
+          ...baseQuery,
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : baseQuery;
 
     const sortMap = {
       newest: { createdAt: -1 },
@@ -106,9 +103,13 @@ const getMyPolls = async (req, res, next) => {
     };
     const sortObj = sortMap[sort] || sortMap.newest;
 
-    const total = await Poll.countDocuments(query);
-    const polls = await Poll.find(query).sort(sortObj).skip((page - 1) * limit).limit(limit).lean();
+    // ── Paginated polls ──────────────────────────────────────────────────────
+    const [total, polls] = await Promise.all([
+      Poll.countDocuments(searchQuery),
+      Poll.find(searchQuery).sort(sortObj).skip((page - 1) * limit).limit(limit).lean(),
+    ]);
 
+    // ── Response counts for this page only (single aggregation) ─────────────
     const pollIds = polls.map(p => p._id);
     const responseCounts = await Response.aggregate([
       { $match: { poll: { $in: pollIds } } },
@@ -117,35 +118,37 @@ const getMyPolls = async (req, res, next) => {
     const countMap = {};
     responseCounts.forEach(r => { countMap[r._id.toString()] = r.count; });
 
-    let pollsWithStats = polls.map(poll => {
-      const p = new (require('../models/Poll'))(poll);
-      const status = p.getStatus();
-      return { ...poll, responseCount: countMap[poll._id.toString()] || 0, status };
-    });
+    // Attach status (uses pure computeStatus — no require() inside loop)
+    let pollsWithStats = polls.map(poll => ({
+      ...poll,
+      responseCount: countMap[poll._id.toString()] || 0,
+      status: computeStatus(poll),
+    }));
 
-    // Status filter (applied after status computation)
+    // Status filter applied after in-memory status computation
     if (statusFilter && ['active', 'closed', 'published'].includes(statusFilter)) {
       pollsWithStats = pollsWithStats.filter(p => p.status === statusFilter);
     }
 
-    // Dashboard summary stats
-    const allUserPolls = await Poll.find({ creator: req.user._id }).lean();
-    const totalResponses = await Response.countDocuments({ poll: { $in: allUserPolls.map(p => p._id) } });
-    const summaryStats = {
-      totalPolls: await Poll.countDocuments({ creator: req.user._id }),
-      activePolls: allUserPolls.filter(p => {
-        const inst = new (require('../models/Poll'))(p);
-        return inst.getStatus() === 'active';
-      }).length,
-      totalResponses,
-    };
+    // ── Summary stats: 3 targeted O(1) indexed queries — no full-table scan ──
+    // activePolls = isPublished:false, isClosed:false, expiresAt > now
+    const now = new Date();
+    const [totalPolls, activePolls, totalResponses] = await Promise.all([
+      Poll.countDocuments(baseQuery),
+      Poll.countDocuments({ ...baseQuery, isPublished: false, isClosed: false, expiresAt: { $gt: now } }),
+      Response.aggregate([
+        { $lookup: { from: 'polls', localField: 'poll', foreignField: '_id', as: 'pollDoc' } },
+        { $match: { 'pollDoc.creator': req.user._id } },
+        { $count: 'total' },
+      ]).then(r => (r[0]?.total ?? 0)),
+    ]);
 
     res.json({
       success: true,
       data: {
         polls: pollsWithStats,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-        summaryStats,
+        summaryStats: { totalPolls, activePolls, totalResponses },
       },
     });
   } catch (error) {
@@ -165,8 +168,7 @@ const getPollById = async (req, res, next) => {
     }
 
     const responseCount = await Response.countDocuments({ poll: poll._id });
-    const inst = new (require('../models/Poll'))(poll);
-    const status = inst.getStatus();
+    const status = computeStatus(poll); // uses top-level pure helper
 
     res.json({ success: true, data: { poll: { ...poll, responseCount, status } } });
   } catch (error) {
@@ -307,8 +309,7 @@ const getPublicPoll = async (req, res, next) => {
     const poll = await Poll.findOne({ shareId: req.params.shareId }).lean();
     if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
 
-    const inst = new (require('../models/Poll'))(poll);
-    const status = inst.getStatus();
+    const status = computeStatus(poll); // uses top-level pure helper
     const totalResponses = await Response.countDocuments({ poll: poll._id });
 
     const responseData = {

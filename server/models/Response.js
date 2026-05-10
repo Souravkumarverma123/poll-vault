@@ -63,4 +63,8 @@ responseSchema.index(
   { unique: true, sparse: true, partialFilterExpression: { clientFingerprint: { $ne: null } } }
 );
 
+// TTL Index: Automatically delete responses 30 days after submission
+// This prevents unbounded database growth for old/abandoned polls
+responseSchema.index({ submittedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+
 module.exports = mongoose.model('Response', responseSchema);

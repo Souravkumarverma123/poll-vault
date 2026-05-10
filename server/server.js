@@ -35,7 +35,10 @@ app.use(helmet({
   },
 }));
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
+// ── CORS & CSRF ──────────────────────────────────────────────────────────────
+// CSRF Protection: We rely on httpOnly cookies with SameSite=Lax/Strict.
+// Modern browsers enforce SameSite, preventing cross-site requests from attaching
+// the authentication cookie. This avoids the need for a separate CSRF token.
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
@@ -44,36 +47,30 @@ app.use(cors({
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV !== 'production';
 
-// In development, use a passthrough middleware (no rate limiting)
+// In development, use lightweight limits to catch edge cases early
 // In production, enforce strict limits
-const authLimiter = isDev
-  ? (req, res, next) => next()
-  : rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 20,                   // 20 login/register attempts per window
-      message: { success: false, message: 'Too many attempts. Please try again after 15 minutes.' },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 100 : 20,    // 100 in dev, 20 in prod
+  message: { success: false, message: 'Too many attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-const responseLimiter = isDev
-  ? (req, res, next) => next()
-  : rateLimit({
-      windowMs: 60 * 1000, // 1 minute
-      max: 10,
-      message: { success: false, message: 'Too many submissions. Please wait a moment before trying again.' },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+const responseLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDev ? 50 : 10, // 50 in dev, 10 in prod
+  message: { success: false, message: 'Too many submissions. Please wait a moment before trying again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-const generalLimiter = isDev
-  ? (req, res, next) => next()
-  : rateLimit({
-      windowMs: 60 * 1000,
-      max: 120,
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isDev ? 500 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ── Body Parsers ──────────────────────────────────────────────────────────────
 app.use(cookieParser());
