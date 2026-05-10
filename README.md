@@ -1,6 +1,6 @@
 <div align="center">
   <img src="./client/public/poll-vault.png" alt="PollVault App Preview" width="100%" />
-  <h1>PollVault 🏛️</h1>
+  <h1>Poll-Vault 🏛️</h1>
   <p><strong>A production-ready, real-time polling and survey platform built for modern teams.</strong></p>
   
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
