@@ -1,5 +1,5 @@
-0<div align="center">
-  <img src="./client/public/poll-vault.png" alt="PollVault Logo" width="100vh" height="100vh" />
+<div align="center">
+  <img src="./client/public/poll-vault.png" alt="PollVault App Preview" width="100%" />
   <h1>PollVault 🏛️</h1>
   <p><strong>A production-ready, real-time polling and survey platform built for modern teams.</strong></p>
   
