@@ -7,7 +7,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
+const { responseLimiter, generalLimiter } = require('./middleware/rateLimiter');
 const connectDB = require('./config/db');
 const { initSocket } = require('./socket/socketHandler');
 const errorHandler = require('./middleware/errorHandler');
@@ -16,6 +16,7 @@ const errorHandler = require('./middleware/errorHandler');
 connectDB();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Initialize Socket.IO
@@ -47,32 +48,7 @@ app.use(cors({
 }));
 
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
-
-
-// In development, use lightweight limits to catch edge cases early
-// In production, enforce strict limits
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDev ? 100 : 20,    // 100 in dev, 20 in prod
-  message: { success: false, message: 'Too many attempts. Please try again after 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const responseLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: isDev ? 50 : 10, // 50 in dev, 10 in prod
-  message: { success: false, message: 'Too many submissions. Please wait a moment before trying again.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: isDev ? 500 : 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Limiters are now imported from middleware/rateLimiter.js
 
 // ── Body Parsers ──────────────────────────────────────────────────────────────
 app.use(cookieParser());
@@ -86,7 +62,7 @@ app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
 app.use(generalLimiter);
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth', authLimiter, require('./routes/authRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/polls', require('./routes/pollRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
@@ -106,8 +82,10 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`[server] Running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`[server] Running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  });
+}
 
 module.exports = { app, server };

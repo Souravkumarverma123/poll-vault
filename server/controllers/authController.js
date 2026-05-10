@@ -1,5 +1,6 @@
 const User = require('../models/User');
-const { generateToken, setTokenCookie, clearTokenCookie } = require('../utils/generateToken');
+const jwt = require('jsonwebtoken');
+const { generateAccessToken, generateRefreshToken, setCookies, clearCookies } = require('../utils/generateToken');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -17,8 +18,9 @@ const register = async (req, res, next) => {
     }
 
     const user = await User.create({ name, email, password });
-    const token = generateToken(user._id);
-    setTokenCookie(res, token); // httpOnly cookie — JS cannot access this
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    setCookies(res, accessToken, refreshToken); // httpOnly cookies
 
     res.status(201).json({
       success: true,
@@ -50,8 +52,9 @@ const login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    const token = generateToken(user._id);
-    setTokenCookie(res, token); // httpOnly cookie — JS cannot access this
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    setCookies(res, accessToken, refreshToken); // httpOnly cookies
 
     res.json({
       success: true,
@@ -70,8 +73,35 @@ const login = async (req, res, next) => {
 // @route   POST /api/auth/logout
 // @access  Private
 const logout = (req, res) => {
-  clearTokenCookie(res);
+  clearCookies(res);
   res.json({ success: true, message: 'Logged out successfully' });
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+const refresh = async (req, res) => {
+  const token = req.cookies.pollvault_refresh_token;
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Not authorized, no refresh token' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    setCookies(res, accessToken, refreshToken);
+
+    res.json({ success: true, message: 'Token refreshed successfully' });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Not authorized, refresh token invalid or expired' });
+  }
 };
 
 // @desc    Get current user
@@ -151,11 +181,11 @@ const deleteAccount = async (req, res, next) => {
     await Poll.deleteMany({ creator: user._id });
     await User.findByIdAndDelete(user._id);
 
-    clearTokenCookie(res);
+    clearCookies(res);
     res.json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { register, login, logout, getMe, updateProfile, deleteAccount };
+module.exports = { register, login, logout, refresh, getMe, updateProfile, deleteAccount };

@@ -5,8 +5,8 @@ const User = require('../models/User');
  * Extract JWT from httpOnly cookie first, then Authorization header as fallback.
  */
 const extractToken = (req) => {
-  if (req.cookies && req.cookies.pollvault_token) {
-    return req.cookies.pollvault_token;
+  if (req.cookies && req.cookies.pollvault_access_token) {
+    return req.cookies.pollvault_access_token;
   }
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     return req.headers.authorization.split(' ')[1];
