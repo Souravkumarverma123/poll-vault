@@ -1,7 +1,7 @@
 services:
   - type: web
     name: pollvault
-    env: docker
+    runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /api/polls/public/nonexistent
