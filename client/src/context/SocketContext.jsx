@@ -17,7 +17,12 @@ export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const socket = io({
+    // In development, bypass Vite proxy and connect directly to the backend 
+    // to avoid flaky WebSocket proxy issues (ECONNRESET).
+    // In production, `undefined` connects to the same origin (handled by Nginx/host).
+    const backendUrl = import.meta.env.DEV ? 'http://localhost:8000' : undefined;
+
+    const socket = io(backendUrl, {
       withCredentials: true,       // sends httpOnly cookie
       autoConnect: true,
       reconnection: true,

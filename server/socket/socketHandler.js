@@ -17,9 +17,11 @@ const parseCookies = (cookieHeader = '') => {
 };
 
 const initSocket = (server) => {
+  const isDev = process.env.NODE_ENV !== 'production';
+
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: isDev ? /^http:\/\/localhost:\d+$/ : (process.env.CLIENT_URL || 'http://localhost:5173'),
       methods: ['GET', 'POST'],
       credentials: true,
     },

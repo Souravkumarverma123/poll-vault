@@ -39,13 +39,15 @@ app.use(helmet({
 // CSRF Protection: We rely on httpOnly cookies with SameSite=Lax/Strict.
 // Modern browsers enforce SameSite, preventing cross-site requests from attaching
 // the authentication cookie. This avoids the need for a separate CSRF token.
+const isDev = process.env.NODE_ENV !== 'production';
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: isDev ? /^http:\/\/localhost:\d+$/ : (process.env.CLIENT_URL || 'http://localhost:5173'),
   credentials: true,
 }));
 
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
-const isDev = process.env.NODE_ENV !== 'production';
+
 
 // In development, use lightweight limits to catch edge cases early
 // In production, enforce strict limits
@@ -76,6 +78,11 @@ const generalLimiter = rateLimit({
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// ── Health Check (No strict rate limiting) ────────────────────────────────────
+// Placed before generalLimiter so wait-on doesn't trip rate limits during startup
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use(generalLimiter);
 
 // ── API Routes ────────────────────────────────────────────────────────────────

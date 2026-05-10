@@ -6,7 +6,7 @@
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
-    "dev": "concurrently \"npm run dev:server\" \"wait-on http://localhost:8000/api/auth/me && npm run dev:client\""
+    "dev": "concurrently \"npm run dev:server\" \"wait-on http://localhost:8000/api/health && npm run dev:client\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
