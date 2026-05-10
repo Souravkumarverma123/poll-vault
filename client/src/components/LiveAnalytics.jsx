@@ -1,13 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { io } from 'socket.io-client';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/context/AuthContext';
+import { useSocket } from '@/context/SocketContext';
 import { getAnalytics } from '@/api/polls';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { Users, TrendingUp } from 'lucide-react';
+import { Users, TrendingUp, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -19,11 +17,12 @@ const CHART_COLORS = [
 ];
 
 export default function LiveAnalytics({ pollId }) {
-  const { token } = useAuth();
+  const socket = useSocket(); // singleton — no new connection created
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const socketRef = useRef(null);
+  const joinedRef = useRef(false);
 
+  // Fetch initial analytics
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -38,16 +37,22 @@ export default function LiveAnalytics({ pollId }) {
     fetchData();
   }, [pollId]);
 
+  // Use singleton socket — join room, listen for updates
   useEffect(() => {
-    const socket = io();
-    socketRef.current = socket;
-    socket.on('connect', () => {
-      socket.emit('join:poll', { pollId, token });
-    });
-    socket.on('response:new', (payload) => {
+    if (!socket) return; // server not connected yet — will re-run when socket is ready
+
+    const handleConnect = () => {
+      if (!joinedRef.current) {
+        socket.emit('join:poll', { pollId });
+        joinedRef.current = true;
+      }
+    };
+
+    const handleNewResponse = (payload) => {
       setData((prev) => {
         if (!prev) return prev;
         const updatedQuestions = prev.questions.map((q) => {
+          if (q.questionType === 'text') return q; // text answers not aggregated in real-time
           const stats = payload.questionStats.find((s) => s.questionId === q._id);
           if (!stats) return q;
           return {
@@ -60,12 +65,24 @@ export default function LiveAnalytics({ pollId }) {
         });
         return { totalResponses: payload.totalResponses, questions: updatedQuestions };
       });
-    });
-    return () => {
-      socket.emit('leave:poll', { pollId });
-      socket.disconnect();
     };
-  }, [pollId, token]);
+
+    // If already connected, join immediately
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.on('connect', handleConnect);
+    }
+
+    socket.on('response:new', handleNewResponse);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('response:new', handleNewResponse);
+      socket.emit('leave:poll', { pollId });
+      joinedRef.current = false;
+    };
+  }, [socket, pollId]);
 
   if (loading) {
     return (
@@ -80,6 +97,7 @@ export default function LiveAnalytics({ pollId }) {
 
   return (
     <div className="space-y-6">
+      {/* Total Responses Card */}
       <Card className="animate-pulse-glow">
         <CardContent className="flex items-center gap-4 p-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -97,11 +115,39 @@ export default function LiveAnalytics({ pollId }) {
       </Card>
 
       {data.questions.map((q, idx) => {
+        const isText = q.questionType === 'text';
+
+        if (isText) {
+          return (
+            <Card key={q._id}>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  {idx + 1}. {q.questionText}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(!q.answers || q.answers.length === 0) ? (
+                  <p className="text-sm text-muted-foreground italic">No text responses yet.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {q.answers.map((text, i) => (
+                      <div key={i} className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">{text}</div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-muted-foreground">{q.totalForQuestion} response(s)</p>
+              </CardContent>
+            </Card>
+          );
+        }
+
         const labels = q.options.map((o) => o.optionText);
         const counts = q.options.map((o) => o.count);
         const colors = q.options.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
         const chartData = { labels, datasets: [{ label: 'Responses', data: counts, backgroundColor: colors, borderRadius: 6 }] };
         const doughnutData = { labels, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0 }] };
+
         return (
           <Card key={q._id}>
             <CardHeader>
@@ -123,7 +169,10 @@ export default function LiveAnalytics({ pollId }) {
               <div className="mt-4 space-y-2">
                 {q.options.map((opt, oi) => (
                   <div key={oi} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: CHART_COLORS[oi % CHART_COLORS.length] }} />{opt.optionText}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: CHART_COLORS[oi % CHART_COLORS.length] }} />
+                      {opt.optionText}
+                    </span>
                     <span className="text-muted-foreground">{opt.count} ({opt.percentage}%)</span>
                   </div>
                 ))}

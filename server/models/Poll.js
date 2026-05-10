@@ -6,14 +6,22 @@ const questionSchema = new mongoose.Schema({
     required: [true, 'Question text is required'],
     trim: true,
   },
+  questionType: {
+    type: String,
+    enum: ['single', 'multiple', 'text'],
+    default: 'single',
+  },
   options: {
     type: [String],
     validate: {
       validator: function (v) {
+        // options only required for single/multiple types
+        if (this.questionType === 'text') return true;
         return v && v.length >= 2;
       },
-      message: 'Each question must have at least 2 options',
+      message: 'Each choice question must have at least 2 options',
     },
+    default: [],
   },
   isRequired: {
     type: Boolean,
@@ -55,15 +63,16 @@ const pollSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isClosed: {
+    type: Boolean,
+    default: false,
+  },
   expiresAt: {
     type: Date,
     required: [true, 'Expiry date is required'],
     validate: {
       validator: function (v) {
-        // Only validate on creation (not on updates)
-        if (this.isNew) {
-          return v > new Date();
-        }
+        if (this.isNew) return v > new Date();
         return true;
       },
       message: 'Expiry date must be in the future',
@@ -81,5 +90,15 @@ const pollSchema = new mongoose.Schema({
 }, {
   timestamps: true,
 });
+
+/**
+ * Centralized status computation — single source of truth.
+ * Possible values: 'active' | 'closed' | 'published'
+ */
+pollSchema.methods.getStatus = function () {
+  if (this.isPublished) return 'published';
+  if (this.isClosed || this.expiresAt <= new Date()) return 'closed';
+  return 'active';
+};
 
 module.exports = mongoose.model('Poll', pollSchema);

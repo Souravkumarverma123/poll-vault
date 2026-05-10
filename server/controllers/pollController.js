@@ -1,49 +1,57 @@
+const crypto = require('crypto');
 const Poll = require('../models/Poll');
 const Response = require('../models/Response');
 const { nanoid } = require('nanoid');
 const { getIO } = require('../socket/socketHandler');
 
-// Helper: aggregate analytics for a poll
+// ── Helper: server-side fingerprint (IP + UA hash) ───────────────────────────
+const generateFingerprint = (req) => {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  return crypto.createHash('sha256').update(`${ip}::${ua}`).digest('hex');
+};
+
+// ── Helper: aggregate analytics for a poll ───────────────────────────────────
 const aggregateAnalytics = async (pollId) => {
-  const results = await Response.aggregate([
-    { $match: { poll: pollId } },
-    { $unwind: '$answers' },
-    {
-      $group: {
-        _id: {
-          questionId: '$answers.questionId',
-          selectedOption: '$answers.selectedOption',
-        },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $group: {
-        _id: '$_id.questionId',
-        options: {
-          $push: {
-            optionText: '$_id.selectedOption',
-            count: '$count',
-          },
-        },
-        totalForQuestion: { $sum: '$count' },
-      },
-    },
-  ]);
+  const responses = await Response.find({ poll: pollId }).lean();
+  const totalResponses = responses.length;
 
-  const totalResponses = await Response.countDocuments({ poll: pollId });
+  const poll = await Poll.findById(pollId).lean();
+  if (!poll) return { totalResponses: 0, questionStats: [] };
 
-  // Format the results to include percentages
-  const questionStats = results.map(q => ({
-    questionId: q._id,
-    options: q.options.map(opt => ({
-      optionText: opt.optionText,
-      count: opt.count,
-      percentage: q.totalForQuestion > 0
-        ? Math.round((opt.count / q.totalForQuestion) * 100)
-        : 0,
-    })),
-  }));
+  const questionStats = poll.questions.map((q) => {
+    const qIdStr = q._id.toString();
+    const allAnswers = responses.map(r => r.answers.find(a => a.questionId.toString() === qIdStr)).filter(Boolean);
+
+    if (q.questionType === 'text') {
+      return {
+        questionId: q._id,
+        questionType: 'text',
+        answers: allAnswers.map(a => a.textAnswer).filter(Boolean),
+        totalForQuestion: allAnswers.length,
+      };
+    }
+
+    // single or multiple
+    const optionCounts = {};
+    q.options.forEach(opt => { optionCounts[opt] = 0; });
+
+    allAnswers.forEach(a => {
+      const selections = q.questionType === 'multiple' ? (a.selectedOptions || []) : (a.selectedOption ? [a.selectedOption] : []);
+      selections.forEach(sel => {
+        if (optionCounts[sel] !== undefined) optionCounts[sel]++;
+      });
+    });
+
+    const totalVotes = Object.values(optionCounts).reduce((s, c) => s + c, 0);
+    const options = q.options.map(opt => ({
+      optionText: opt,
+      count: optionCounts[opt],
+      percentage: totalVotes > 0 ? Math.round((optionCounts[opt] / totalVotes) * 100) : 0,
+    }));
+
+    return { questionId: q._id, questionType: q.questionType || 'single', options, totalForQuestion: allAnswers.length };
+  });
 
   return { totalResponses, questionStats };
 };
@@ -65,52 +73,80 @@ const createPoll = async (req, res, next) => {
       expiresAt: new Date(expiresAt),
     });
 
-    res.status(201).json({
-      success: true,
-      data: { poll },
-    });
+    res.status(201).json({ success: true, data: { poll } });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get all polls for logged-in user
-// @route   GET /api/polls
+// @desc    Get all polls for logged-in user (with pagination + search + sort)
+// @route   GET /api/polls?page=1&limit=20&search=foo&sort=newest&status=active
 // @access  Private
 const getMyPolls = async (req, res, next) => {
   try {
-    const polls = await Poll.find({ creator: req.user._id })
-      .sort({ createdAt: -1 })
-      .lean();
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = req.query.search?.trim() || '';
+    const sort = req.query.sort || 'newest';
+    const statusFilter = req.query.status || '';
 
-    // Attach response counts
+    const query = { creator: req.user._id };
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const sortMap = {
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      expiring: { expiresAt: 1 },
+      title: { title: 1 },
+    };
+    const sortObj = sortMap[sort] || sortMap.newest;
+
+    const total = await Poll.countDocuments(query);
+    const polls = await Poll.find(query).sort(sortObj).skip((page - 1) * limit).limit(limit).lean();
+
     const pollIds = polls.map(p => p._id);
     const responseCounts = await Response.aggregate([
       { $match: { poll: { $in: pollIds } } },
       { $group: { _id: '$poll', count: { $sum: 1 } } },
     ]);
-
     const countMap = {};
-    responseCounts.forEach(r => {
-      countMap[r._id.toString()] = r.count;
+    responseCounts.forEach(r => { countMap[r._id.toString()] = r.count; });
+
+    let pollsWithStats = polls.map(poll => {
+      const p = new (require('../models/Poll'))(poll);
+      const status = p.getStatus();
+      return { ...poll, responseCount: countMap[poll._id.toString()] || 0, status };
     });
 
-    const pollsWithStats = polls.map(poll => {
-      const now = new Date();
-      let status = 'active';
-      if (poll.isPublished) status = 'published';
-      else if (poll.expiresAt <= now) status = 'closed';
+    // Status filter (applied after status computation)
+    if (statusFilter && ['active', 'closed', 'published'].includes(statusFilter)) {
+      pollsWithStats = pollsWithStats.filter(p => p.status === statusFilter);
+    }
 
-      return {
-        ...poll,
-        responseCount: countMap[poll._id.toString()] || 0,
-        status,
-      };
-    });
+    // Dashboard summary stats
+    const allUserPolls = await Poll.find({ creator: req.user._id }).lean();
+    const totalResponses = await Response.countDocuments({ poll: { $in: allUserPolls.map(p => p._id) } });
+    const summaryStats = {
+      totalPolls: await Poll.countDocuments({ creator: req.user._id }),
+      activePolls: allUserPolls.filter(p => {
+        const inst = new (require('../models/Poll'))(p);
+        return inst.getStatus() === 'active';
+      }).length,
+      totalResponses,
+    };
 
     res.json({
       success: true,
-      data: { polls: pollsWithStats },
+      data: {
+        polls: pollsWithStats,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        summaryStats,
+      },
     });
   } catch (error) {
     next(error);
@@ -123,25 +159,50 @@ const getMyPolls = async (req, res, next) => {
 const getPollById = async (req, res, next) => {
   try {
     const poll = await Poll.findById(req.params.id).lean();
-
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
     if (poll.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
     const responseCount = await Response.countDocuments({ poll: poll._id });
-    const now = new Date();
-    let status = 'active';
-    if (poll.isPublished) status = 'published';
-    else if (poll.expiresAt <= now) status = 'closed';
+    const inst = new (require('../models/Poll'))(poll);
+    const status = inst.getStatus();
 
-    res.json({
-      success: true,
-      data: { poll: { ...poll, responseCount, status } },
-    });
+    res.json({ success: true, data: { poll: { ...poll, responseCount, status } } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Edit a poll (title, description, questions, expiresAt, responseMode)
+// @route   PATCH /api/polls/:id
+// @access  Private
+const editPoll = async (req, res, next) => {
+  try {
+    const poll = await Poll.findById(req.params.id);
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
+    if (poll.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    if (poll.isPublished) {
+      return res.status(400).json({ success: false, message: 'Cannot edit a published poll' });
+    }
+
+    const { title, description, questions, expiresAt, responseMode } = req.body;
+    if (title !== undefined) poll.title = title;
+    if (description !== undefined) poll.description = description;
+    if (questions !== undefined) poll.questions = questions;
+    if (expiresAt !== undefined) {
+      if (new Date(expiresAt) <= new Date()) {
+        return res.status(400).json({ success: false, message: 'Expiry date must be in the future' });
+      }
+      poll.expiresAt = new Date(expiresAt);
+      poll.isClosed = false; // re-open if manually extending
+    }
+    if (responseMode !== undefined) poll.responseMode = responseMode;
+
+    await poll.save();
+    res.json({ success: true, data: { poll } });
   } catch (error) {
     next(error);
   }
@@ -153,23 +214,38 @@ const getPollById = async (req, res, next) => {
 const deletePoll = async (req, res, next) => {
   try {
     const poll = await Poll.findById(req.params.id);
-
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
     if (poll.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    // Delete poll and all associated responses
     await Response.deleteMany({ poll: poll._id });
     await Poll.findByIdAndDelete(poll._id);
 
-    res.json({
-      success: true,
-      message: 'Poll deleted successfully',
-    });
+    res.json({ success: true, message: 'Poll deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Manually close a poll early
+// @route   PATCH /api/polls/:id/close
+// @access  Private
+const closePoll = async (req, res, next) => {
+  try {
+    const poll = await Poll.findById(req.params.id);
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
+    if (poll.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    if (poll.isPublished) {
+      return res.status(400).json({ success: false, message: 'Poll is already published' });
+    }
+
+    poll.isClosed = true;
+    await poll.save();
+
+    res.json({ success: true, data: { poll }, message: 'Poll closed successfully' });
   } catch (error) {
     next(error);
   }
@@ -181,26 +257,43 @@ const deletePoll = async (req, res, next) => {
 const publishPoll = async (req, res, next) => {
   try {
     const poll = await Poll.findById(req.params.id);
-
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
     if (poll.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
-
     if (poll.isPublished) {
       return res.status(400).json({ success: false, message: 'Poll is already published' });
     }
 
     poll.isPublished = true;
+    poll.isClosed = true; // Published polls stop accepting responses
     await poll.save();
 
-    res.json({
-      success: true,
-      data: { poll },
-    });
+    res.json({ success: true, data: { poll } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Unpublish poll results
+// @route   PATCH /api/polls/:id/unpublish
+// @access  Private
+const unpublishPoll = async (req, res, next) => {
+  try {
+    const poll = await Poll.findById(req.params.id);
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
+    if (poll.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    if (!poll.isPublished) {
+      return res.status(400).json({ success: false, message: 'Poll is not published' });
+    }
+
+    poll.isPublished = false;
+    poll.isClosed = false; // Re-open for responses unless expired
+    await poll.save();
+
+    res.json({ success: true, data: { poll }, message: 'Poll unpublished successfully' });
   } catch (error) {
     next(error);
   }
@@ -212,15 +305,11 @@ const publishPoll = async (req, res, next) => {
 const getPublicPoll = async (req, res, next) => {
   try {
     const poll = await Poll.findOne({ shareId: req.params.shareId }).lean();
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
 
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
-    const now = new Date();
-    let status = 'active';
-    if (poll.isPublished) status = 'published';
-    else if (poll.expiresAt <= now) status = 'closed';
+    const inst = new (require('../models/Poll'))(poll);
+    const status = inst.getStatus();
+    const totalResponses = await Response.countDocuments({ poll: poll._id });
 
     const responseData = {
       _id: poll._id,
@@ -231,18 +320,15 @@ const getPublicPoll = async (req, res, next) => {
       expiresAt: poll.expiresAt,
       isPublished: poll.isPublished,
       status,
+      totalResponses, // visible to respondents
     };
 
-    // If published, include analytics
     if (poll.isPublished) {
       const analytics = await aggregateAnalytics(poll._id);
       responseData.analytics = analytics;
     }
 
-    res.json({
-      success: true,
-      data: { poll: responseData },
-    });
+    res.json({ success: true, data: { poll: responseData } });
   } catch (error) {
     next(error);
   }
@@ -250,91 +336,92 @@ const getPublicPoll = async (req, res, next) => {
 
 // @desc    Submit a response to a poll
 // @route   POST /api/polls/:pollId/responses
-// @access  Public or Private (depends on poll.responseMode)
+// @access  Public or Private
 const submitResponse = async (req, res, next) => {
   try {
     const poll = await Poll.findById(req.params.pollId);
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
 
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
-    // Check if poll is published
     if (poll.isPublished) {
       return res.status(403).json({ success: false, message: 'Poll results have been published. No more responses accepted.' });
     }
-
-    // Check if poll has expired
-    if (poll.expiresAt <= new Date()) {
-      return res.status(410).json({ success: false, message: 'This poll has expired and is no longer accepting responses.' });
+    if (poll.isClosed || poll.expiresAt <= new Date()) {
+      return res.status(410).json({ success: false, message: 'This poll is no longer accepting responses.' });
     }
-
-    // Check authentication for authenticated polls
     if (poll.responseMode === 'authenticated' && !req.user) {
       return res.status(401).json({ success: false, message: 'You must be logged in to respond to this poll.' });
     }
 
-    // Check for duplicate authenticated response
+    // Duplicate check for authenticated
     if (poll.responseMode === 'authenticated' && req.user) {
-      const existingResponse = await Response.findOne({
-        poll: poll._id,
-        user: req.user._id,
-      });
+      const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
       if (existingResponse) {
+        return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
+      }
+    }
+
+    // Server-generated fingerprint for anonymous spam prevention
+    const serverFingerprint = !req.user ? generateFingerprint(req) : null;
+
+    // Duplicate check for anonymous via fingerprint
+    if (serverFingerprint) {
+      const existingAnon = await Response.findOne({ poll: poll._id, clientFingerprint: serverFingerprint });
+      if (existingAnon) {
         return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
       }
     }
 
     const { answers } = req.body;
 
-    // Validate answers against poll questions
+    // Build question map
     const questionMap = {};
-    poll.questions.forEach(q => {
-      questionMap[q._id.toString()] = q;
-    });
+    poll.questions.forEach(q => { questionMap[q._id.toString()] = q; });
 
-    // Check all required questions are answered
+    // Validate required questions answered
     for (const question of poll.questions) {
       if (question.isRequired) {
         const answer = answers.find(a => a.questionId === question._id.toString());
         if (!answer) {
-          return res.status(400).json({
-            success: false,
-            message: `Question "${question.questionText}" is required.`,
-          });
+          return res.status(400).json({ success: false, message: `Question "${question.questionText}" is required.` });
+        }
+        if (question.questionType === 'text' && !answer.textAnswer?.trim()) {
+          return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires a text answer.` });
+        }
+        if (question.questionType === 'multiple' && (!answer.selectedOptions || answer.selectedOptions.length === 0)) {
+          return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires at least one selection.` });
+        }
+        if (question.questionType === 'single' && !answer.selectedOption) {
+          return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires a selection.` });
         }
       }
     }
 
-    // Validate each answer's option exists
+    // Validate option values
     for (const answer of answers) {
       const question = questionMap[answer.questionId];
       if (!question) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid question ID: ${answer.questionId}`,
-        });
+        return res.status(400).json({ success: false, message: `Invalid question ID: ${answer.questionId}` });
       }
-      if (!question.options.includes(answer.selectedOption)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid option "${answer.selectedOption}" for question "${question.questionText}"`,
-        });
+      if (question.questionType === 'single' && answer.selectedOption && !question.options.includes(answer.selectedOption)) {
+        return res.status(400).json({ success: false, message: `Invalid option for question "${question.questionText}"` });
+      }
+      if (question.questionType === 'multiple' && answer.selectedOptions) {
+        const invalid = answer.selectedOptions.filter(o => !question.options.includes(o));
+        if (invalid.length > 0) {
+          return res.status(400).json({ success: false, message: `Invalid option(s) for question "${question.questionText}"` });
+        }
       }
     }
 
-    // Create response
-    const responseDoc = await Response.create({
+    await Response.create({
       poll: poll._id,
       user: req.user ? req.user._id : null,
-      clientFingerprint: req.body.clientFingerprint || null,
+      clientFingerprint: serverFingerprint,
       answers,
     });
 
-    // Aggregate updated stats
     const analytics = await aggregateAnalytics(poll._id);
 
-    // Emit real-time update to creator's dashboard
     try {
       const io = getIO();
       io.to(`poll_${poll._id}`).emit('response:new', {
@@ -352,12 +439,8 @@ const submitResponse = async (req, res, next) => {
       data: { totalResponses: analytics.totalResponses },
     });
   } catch (error) {
-    // Handle duplicate key error for authenticated users
     if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'You have already submitted a response to this poll.',
-      });
+      return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
     }
     next(error);
   }
@@ -369,29 +452,31 @@ const submitResponse = async (req, res, next) => {
 const getAnalytics = async (req, res, next) => {
   try {
     const poll = await Poll.findById(req.params.id).lean();
-
-    if (!poll) {
-      return res.status(404).json({ success: false, message: 'Poll not found' });
-    }
-
+    if (!poll) return res.status(404).json({ success: false, message: 'Poll not found' });
     if (poll.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
     const analytics = await aggregateAnalytics(poll._id);
 
-    // Merge analytics with question data for context
     const questionsWithStats = poll.questions.map(q => {
-      const stats = analytics.questionStats.find(
-        s => s.questionId.toString() === q._id.toString()
-      );
+      const stats = analytics.questionStats.find(s => s.questionId.toString() === q._id.toString());
+      if (q.questionType === 'text') {
+        return {
+          _id: q._id,
+          questionText: q.questionText,
+          questionType: 'text',
+          isRequired: q.isRequired,
+          answers: stats ? stats.answers : [],
+          totalForQuestion: stats ? stats.totalForQuestion : 0,
+        };
+      }
       return {
         _id: q._id,
         questionText: q.questionText,
+        questionType: q.questionType || 'single',
         options: q.options.map(optText => {
-          const optStat = stats
-            ? stats.options.find(o => o.optionText === optText)
-            : null;
+          const optStat = stats ? stats.options.find(o => o.optionText === optText) : null;
           return {
             optionText: optText,
             count: optStat ? optStat.count : 0,
@@ -404,10 +489,7 @@ const getAnalytics = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: {
-        totalResponses: analytics.totalResponses,
-        questions: questionsWithStats,
-      },
+      data: { totalResponses: analytics.totalResponses, questions: questionsWithStats },
     });
   } catch (error) {
     next(error);
@@ -415,12 +497,7 @@ const getAnalytics = async (req, res, next) => {
 };
 
 module.exports = {
-  createPoll,
-  getMyPolls,
-  getPollById,
-  deletePoll,
-  publishPoll,
-  getPublicPoll,
-  submitResponse,
-  getAnalytics,
+  createPoll, getMyPolls, getPollById, editPoll, deletePoll,
+  closePoll, publishPoll, unpublishPoll, getPublicPoll,
+  submitResponse, getAnalytics,
 };

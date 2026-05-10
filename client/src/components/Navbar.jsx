@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { BarChart3, LogOut, LayoutDashboard, Plus, Menu, X, Moon, Sun } from 'lucide-react';
+import { BarChart3, LogOut, LayoutDashboard, Plus, Menu, X, Moon, Sun, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
 
@@ -19,8 +19,8 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -86,6 +86,10 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/account')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive">
@@ -155,6 +159,12 @@ export default function Navbar() {
                   <Link to="/polls/create">
                     <Plus className="mr-2 h-4 w-4" />
                     Create Poll
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileOpen(false)}>
+                  <Link to="/account">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
                   </Link>
                 </Button>
                 <Button variant="ghost" className="justify-start text-destructive" onClick={handleLogout}>

@@ -8,12 +8,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, XCircle, Lock, BarChart3 } from 'lucide-react';
+import { CheckCircle2, XCircle, Lock, BarChart3, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function PublicRespond() {
   const { shareId } = useParams();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -93,13 +94,14 @@ export default function PublicRespond() {
             <XCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Poll Closed</h2>
             <p className="text-muted-foreground">This poll is no longer accepting responses.</p>
+            <Button variant="outline" className="mt-4" asChild><Link to="/">Go Home</Link></Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Authenticated mode — need login
+  // Auth required
   if (poll.responseMode === 'authenticated' && !isAuthenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -109,7 +111,7 @@ export default function PublicRespond() {
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
             <p className="text-muted-foreground mb-4">This poll requires you to be logged in to respond.</p>
             <div className="flex gap-2 justify-center">
-              <Button asChild><Link to="/login">Log in</Link></Button>
+              <Button asChild><Link to={`/login?redirect=/respond/${shareId}`}>Log in</Link></Button>
               <Button variant="outline" asChild><Link to="/register">Sign up</Link></Button>
             </div>
           </CardContent>
@@ -126,7 +128,17 @@ export default function PublicRespond() {
           <CardContent className="p-8">
             <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
             <h2 className="text-xl font-semibold mb-2">Thank You!</h2>
-            <p className="text-muted-foreground">Your response has been recorded successfully.</p>
+            <p className="text-muted-foreground mb-6">Your response has been recorded successfully.</p>
+            <div className="flex flex-col gap-2">
+              {poll.isPublished && (
+                <Button asChild>
+                  <Link to={`/respond/${shareId}`}>View Results</Link>
+                </Button>
+              )}
+              <Button variant="outline" asChild>
+                <Link to="/">Go to Homepage</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -142,6 +154,21 @@ export default function PublicRespond() {
         </div>
         <h1 className="text-2xl font-bold sm:text-3xl">{poll.title}</h1>
         {poll.description && <p className="mt-2 text-muted-foreground">{poll.description}</p>}
+
+        {/* Respondent count + expiry — social proof */}
+        <div className="mt-4 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+          {poll.totalResponses > 0 && (
+            <span className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              {poll.totalResponses} {poll.totalResponses === 1 ? 'person has' : 'people have'} responded
+            </span>
+          )}
+          {poll.expiresAt && (
+            <span>
+              Closes {formatDistanceToNow(new Date(poll.expiresAt), { addSuffix: true })}
+            </span>
+          )}
+        </div>
       </div>
       <ResponseForm questions={poll.questions} onSubmit={handleSubmit} loading={submitting} />
     </div>

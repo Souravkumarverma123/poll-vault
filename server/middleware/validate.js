@@ -69,9 +69,14 @@ const validatePoll = [
   body('questions.*.questionText')
     .trim()
     .notEmpty().withMessage('Question text is required'),
+  body('questions.*.questionType')
+    .optional()
+    .isIn(['single', 'multiple', 'text']).withMessage('Question type must be single, multiple, or text'),
   body('questions.*.options')
-    .isArray({ min: 2 }).withMessage('Each question must have at least 2 options'),
+    .optional()
+    .isArray().withMessage('Options must be an array'),
   body('questions.*.options.*')
+    .optional()
     .trim()
     .notEmpty().withMessage('Option text cannot be empty'),
   body('questions.*.isRequired')

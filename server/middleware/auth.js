@@ -1,13 +1,22 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+/**
+ * Extract JWT from httpOnly cookie first, then Authorization header as fallback.
+ */
+const extractToken = (req) => {
+  if (req.cookies && req.cookies.pollvault_token) {
+    return req.cookies.pollvault_token;
+  }
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+  return null;
+};
+
 // Protect routes — require valid JWT
 const protect = async (req, res, next) => {
-  let token;
-
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+  const token = extractToken(req);
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'Not authorized, no token' });
@@ -21,23 +30,19 @@ const protect = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Not authorized, token invalid' });
+    return res.status(401).json({ success: false, message: 'Not authorized, token invalid or expired' });
   }
 };
 
 // Optional auth — attach user if token present, but don't block
 const optionalAuth = async (req, res, next) => {
-  let token;
-
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+  const token = extractToken(req);
 
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select('-password');
-    } catch (error) {
+    } catch {
       // Token invalid — continue without user
     }
   }
