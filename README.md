@@ -28,6 +28,11 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 - **Targeted Broadcasting**: Uses Socket.IO rooms (`poll_${id}`) to ensure data is only pushed to authorized creators currently viewing the analytics page.
 - **Dynamic Visualizations**: Beautiful, interactive Bar and Doughnut charts powered by `Chart.js`.
 
+### 👑 Role-Based Admin Dashboard
+- **RBAC**: Secure role-based access control protecting premium analytics routes and UI components.
+- **Global Metrics**: Admins get exclusive access to a premium dashboard displaying platform-wide user registrations, poll statuses, and total responses.
+- **CLI Seeder**: Included developer script to instantly promote any user to an admin via the terminal.
+
 ### 🛡️ Enterprise-Grade Security & Anti-Abuse
 - **`httpOnly` Cookies**: Authentication is handled entirely via secure, HTTP-only cookies to prevent XSS attacks. No JWTs in `localStorage`.
 - **Server-Side Fingerprinting**: Anonymous polls use a robust SHA-256 hash of the respondent's `IP` and `User-Agent` to prevent duplicate submissions and ballot stuffing. Enforced via MongoDB compound unique indexes.
@@ -93,6 +98,7 @@ poll-vault/
 │   ├── middleware/         # Auth, validation (express-validator), error handling
 │   ├── models/             # Mongoose schemas (User, Poll, Response)
 │   ├── routes/             # Express router definitions
+│   ├── scripts/            # CLI utilities (e.g., makeAdmin.js)
 │   ├── socket/             # WebSocket initialization and event handlers
 │   ├── tests/              # Jest unit tests for pure functions
 │   └── utils/              # Helper functions (fingerprinting, JWT generation)
@@ -140,6 +146,12 @@ The backend includes Jest unit tests for core utilities and status calculations.
 ```bash
 cd server
 npm test
+```
+
+### 5. Create an Admin User (Optional)
+To access the premium Admin Dashboard, you must promote your account to the `admin` role. After registering an account via the UI, run:
+```bash
+node server/scripts/makeAdmin.js your_email@example.com
 ```
 
 ---
