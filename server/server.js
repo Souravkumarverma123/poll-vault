@@ -88,6 +88,7 @@ app.use(generalLimiter);
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, require('./routes/authRoutes'));
 app.use('/api/polls', require('./routes/pollRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Response-specific limiter attached inside pollRoutes for the POST endpoint
 // but we apply it globally here for the responses sub-route

@@ -83,6 +83,12 @@ export default function Navbar() {
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
                   </DropdownMenuItem>
+                  {user?.role === 'admin' && (
+                    <DropdownMenuItem onClick={() => navigate('/admin')}>
+                      <BarChart3 className="mr-2 h-4 w-4 text-primary" />
+                      Admin Dashboard
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => navigate('/account')}>
                     <Settings className="mr-2 h-4 w-4" />
                     Account Settings
@@ -157,6 +163,14 @@ export default function Navbar() {
                     Create Poll
                   </Link>
                 </Button>
+                {user?.role === 'admin' && (
+                  <Button variant="ghost" className="justify-start text-primary" asChild onClick={() => setMobileOpen(false)}>
+                    <Link to="/admin">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      Admin Dashboard
+                    </Link>
+                  </Button>
+                )}
                 <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileOpen(false)}>
                   <Link to="/account">
                     <Settings className="mr-2 h-4 w-4" />

@@ -14,10 +14,11 @@ import PollDetail from '@/pages/PollDetail';
 import PublicRespond from '@/pages/PublicRespond';
 import AccountSettings from '@/pages/AccountSettings';
 import NotFound from '@/pages/NotFound';
+import AdminDashboard from '@/pages/AdminDashboard';
 import { Loader2 } from 'lucide-react';
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+function ProtectedRoute({ children, requireAdmin }) {
+  const { isAuthenticated, loading, user } = useAuth();
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -25,7 +26,16 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
 }
 
 function AppRoutes() {
@@ -39,6 +49,7 @@ function AppRoutes() {
       <Route path="/polls/:id" element={<ProtectedRoute><PollDetail /></ProtectedRoute>} />
       <Route path="/polls/:id/edit" element={<ProtectedRoute><EditPoll /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/respond/:shareId" element={<PublicRespond />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

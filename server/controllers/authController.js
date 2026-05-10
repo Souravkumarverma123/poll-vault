@@ -23,7 +23,7 @@ const register = async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: {
-        user: { _id: user._id, name: user.name, email: user.email },
+        user: { _id: user._id, name: user.name, email: user.email, role: user.role },
         // token intentionally NOT returned in body — use httpOnly cookie only.
         // Socket.IO reads the cookie from the handshake headers automatically.
       },
@@ -56,7 +56,7 @@ const login = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        user: { _id: user._id, name: user.name, email: user.email },
+        user: { _id: user._id, name: user.name, email: user.email, role: user.role },
         // token intentionally NOT returned in body — use httpOnly cookie only.
         // Socket.IO reads the cookie from the handshake headers automatically.
       },
@@ -81,7 +81,7 @@ const getMe = async (req, res) => {
   res.json({
     success: true,
     data: {
-      user: { _id: req.user._id, name: req.user.name, email: req.user.email },
+      user: { _id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role },
     },
   });
 };
@@ -120,7 +120,7 @@ const updateProfile = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { user: { _id: user._id, name: user.name, email: user.email } },
+      data: { user: { _id: user._id, name: user.name, email: user.email, role: user.role } },
     });
   } catch (error) {
     next(error);
