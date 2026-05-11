@@ -91,14 +91,6 @@ const pollSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-/**
- * Centralized status computation — single source of truth.
- * Possible values: 'active' | 'closed' | 'published'
- */
-pollSchema.methods.getStatus = function () {
-  if (this.isPublished) return 'published';
-  if (this.isClosed || this.expiresAt <= new Date()) return 'closed';
-  return 'active';
-};
+
 
 module.exports = mongoose.model('Poll', pollSchema);

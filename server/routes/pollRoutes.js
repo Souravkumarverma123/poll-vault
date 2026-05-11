@@ -7,6 +7,7 @@ const {
 } = require('../controllers/pollController');
 const { protect, optionalAuth } = require('../middleware/auth');
 const { validatePoll, validateResponse } = require('../middleware/validate');
+const { responseLimiter } = require('../middleware/rateLimiter');
 
 // Public routes (must be above parameterized routes)
 router.get('/public/:shareId', getPublicPoll);
@@ -22,7 +23,7 @@ router.patch('/:id/publish', protect, publishPoll);
 router.patch('/:id/unpublish', protect, unpublishPoll);
 router.get('/:id/analytics', protect, getAnalytics);
 
-// Response submission — optionalAuth (attaches user if token present)
-router.post('/:pollId/responses', optionalAuth, validateResponse, submitResponse);
+// Response submission — protected by responseLimiter
+router.post('/:pollId/responses', optionalAuth, responseLimiter, validateResponse, submitResponse);
 
 module.exports = router;

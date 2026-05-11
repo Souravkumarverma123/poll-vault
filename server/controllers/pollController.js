@@ -7,44 +7,84 @@ const { generateFingerprint, computeStatus } = require('../utils/helpers');
 
 // ── Helper: aggregate analytics for a poll ───────────────────────────────────
 const aggregateAnalytics = async (pollId) => {
-  const responses = await Response.find({ poll: pollId }).lean();
-  const totalResponses = responses.length;
-
   const poll = await Poll.findById(pollId).lean();
   if (!poll) return { totalResponses: 0, questionStats: [] };
 
+  const totalResponses = await Response.countDocuments({ poll: poll._id });
+  if (totalResponses === 0) {
+    return {
+      totalResponses: 0,
+      questionStats: poll.questions.map(q => ({
+        questionId: q._id,
+        questionType: q.questionType,
+        options: q.questionType !== 'text' ? q.options.map(opt => ({ optionText: opt, count: 0, percentage: 0 })) : undefined,
+        answers: q.questionType === 'text' ? [] : undefined,
+        totalForQuestion: 0
+      }))
+    };
+  }
+
+  const stats = await Response.aggregate([
+    { $match: { poll: poll._id } },
+    { $unwind: '$answers' },
+    {
+      $facet: {
+        questionCounts: [
+          { $group: { _id: '$answers.questionId', count: { $sum: 1 } } }
+        ],
+        textAnswers: [
+          { $match: { 'answers.textAnswer': { $exists: true, $ne: '' } } },
+          { $group: { _id: '$answers.questionId', answers: { $push: '$answers.textAnswer' } } }
+        ],
+        singleChoice: [
+          { $match: { 'answers.selectedOption': { $exists: true, $ne: null } } },
+          { $group: { _id: { questionId: '$answers.questionId', option: '$answers.selectedOption' }, count: { $sum: 1 } } }
+        ],
+        multipleChoice: [
+          { $match: { 'answers.selectedOptions': { $exists: true, $not: { $size: 0 } } } },
+          { $unwind: '$answers.selectedOptions' },
+          { $group: { _id: { questionId: '$answers.questionId', option: '$answers.selectedOptions' }, count: { $sum: 1 } } }
+        ]
+      }
+    }
+  ]);
+
+  const { questionCounts, textAnswers, singleChoice, multipleChoice } = stats[0];
+
   const questionStats = poll.questions.map((q) => {
     const qIdStr = q._id.toString();
-    const allAnswers = responses.map(r => r.answers.find(a => a.questionId.toString() === qIdStr)).filter(Boolean);
+    const qCountObj = questionCounts.find(qc => qc._id.toString() === qIdStr);
+    const totalForQuestion = qCountObj ? qCountObj.count : 0;
 
     if (q.questionType === 'text') {
+      const textData = textAnswers.find(t => t._id.toString() === qIdStr) || { answers: [] };
       return {
         questionId: q._id,
         questionType: 'text',
-        answers: allAnswers.map(a => a.textAnswer).filter(Boolean),
-        totalForQuestion: allAnswers.length,
+        answers: textData.answers,
+        totalForQuestion,
       };
     }
 
-    // single or multiple
-    const optionCounts = {};
-    q.options.forEach(opt => { optionCounts[opt] = 0; });
-
-    allAnswers.forEach(a => {
-      const selections = q.questionType === 'multiple' ? (a.selectedOptions || []) : (a.selectedOption ? [a.selectedOption] : []);
-      selections.forEach(sel => {
-        if (optionCounts[sel] !== undefined) optionCounts[sel]++;
-      });
+    const choiceData = q.questionType === 'multiple' ? multipleChoice : singleChoice;
+    
+    const countsMap = {};
+    choiceData.forEach(d => {
+      if (d._id.questionId.toString() === qIdStr) {
+        countsMap[d._id.option] = d.count;
+      }
     });
 
-    const totalVotes = Object.values(optionCounts).reduce((s, c) => s + c, 0);
+    let totalVotes = 0;
+    q.options.forEach(opt => { totalVotes += countsMap[opt] || 0; });
+
     const options = q.options.map(opt => ({
       optionText: opt,
-      count: optionCounts[opt],
-      percentage: totalVotes > 0 ? Math.round((optionCounts[opt] / totalVotes) * 100) : 0,
+      count: countsMap[opt] || 0,
+      percentage: totalVotes > 0 ? Math.round(((countsMap[opt] || 0) / totalVotes) * 100) : 0,
     }));
 
-    return { questionId: q._id, questionType: q.questionType || 'single', options, totalForQuestion: allAnswers.length };
+    return { questionId: q._id, questionType: q.questionType || 'single', options, totalForQuestion };
   });
 
   return { totalResponses, questionStats };
@@ -85,15 +125,27 @@ const getMyPolls = async (req, res, next) => {
     const statusFilter = req.query.status || '';
 
     const baseQuery = { creator: req.user._id };
+    
+    const now = new Date();
+    let statusQuery = {};
+    if (statusFilter === 'published') {
+      statusQuery = { isPublished: true };
+    } else if (statusFilter === 'closed') {
+      statusQuery = { isPublished: false, $or: [{ isClosed: true }, { expiresAt: { $lte: now } }] };
+    } else if (statusFilter === 'active') {
+      statusQuery = { isPublished: false, isClosed: false, expiresAt: { $gt: now } };
+    }
+
     const searchQuery = search
       ? {
           ...baseQuery,
+          ...statusQuery,
           $or: [
             { title: { $regex: search, $options: 'i' } },
             { description: { $regex: search, $options: 'i' } },
           ],
         }
-      : baseQuery;
+      : { ...baseQuery, ...statusQuery };
 
     const sortMap = {
       newest: { createdAt: -1 },
@@ -118,29 +170,21 @@ const getMyPolls = async (req, res, next) => {
     const countMap = {};
     responseCounts.forEach(r => { countMap[r._id.toString()] = r.count; });
 
-    // Attach status (uses pure computeStatus — no require() inside loop)
+    // Attach status
     let pollsWithStats = polls.map(poll => ({
       ...poll,
       responseCount: countMap[poll._id.toString()] || 0,
       status: computeStatus(poll),
     }));
 
-    // Status filter applied after in-memory status computation
-    if (statusFilter && ['active', 'closed', 'published'].includes(statusFilter)) {
-      pollsWithStats = pollsWithStats.filter(p => p.status === statusFilter);
-    }
-
     // ── Summary stats: 3 targeted O(1) indexed queries — no full-table scan ──
-    // activePolls = isPublished:false, isClosed:false, expiresAt > now
-    const now = new Date();
+    const allUserPolls = await Poll.find(baseQuery).select('_id').lean();
+    const allUserPollIds = allUserPolls.map(p => p._id);
+    
     const [totalPolls, activePolls, totalResponses] = await Promise.all([
       Poll.countDocuments(baseQuery),
       Poll.countDocuments({ ...baseQuery, isPublished: false, isClosed: false, expiresAt: { $gt: now } }),
-      Response.aggregate([
-        { $lookup: { from: 'polls', localField: 'poll', foreignField: '_id', as: 'pollDoc' } },
-        { $match: { 'pollDoc.creator': req.user._id } },
-        { $count: 'total' },
-      ]).then(r => (r[0]?.total ?? 0)),
+      Response.countDocuments({ poll: { $in: allUserPollIds } }),
     ]);
 
     res.json({
@@ -385,8 +429,12 @@ const submitResponse = async (req, res, next) => {
         if (!answer) {
           return res.status(400).json({ success: false, message: `Question "${question.questionText}" is required.` });
         }
-        if (question.questionType === 'text' && !answer.textAnswer?.trim()) {
-          return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires a text answer.` });
+        if (question.questionType === 'text') {
+          if (!answer.textAnswer?.trim()) {
+            return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires a text answer.` });
+          }
+          // Basic HTML sanitization to prevent XSS
+          answer.textAnswer = answer.textAnswer.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
         if (question.questionType === 'multiple' && (!answer.selectedOptions || answer.selectedOptions.length === 0)) {
           return res.status(400).json({ success: false, message: `Question "${question.questionText}" requires at least one selection.` });

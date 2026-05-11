@@ -29,7 +29,7 @@ ENV NODE_ENV=production
 
 # Copy server code and installed modules
 COPY --from=builder /app/server ./server
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server/node_modules ./server/node_modules
 # Copy built client to server
 COPY --from=builder /app/client/dist ./client/dist
 

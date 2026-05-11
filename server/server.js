@@ -7,7 +7,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
-const { responseLimiter, generalLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter } = require('./middleware/rateLimiter');
 const connectDB = require('./config/db');
 const { initSocket } = require('./socket/socketHandler');
 const errorHandler = require('./middleware/errorHandler');
@@ -66,9 +66,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/polls', require('./routes/pollRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-// Response-specific limiter attached inside pollRoutes for the POST endpoint
-// but we apply it globally here for the responses sub-route
-app.use('/api/polls/:pollId/responses', responseLimiter);
+// Response-specific limiter is now attached inside pollRoutes.js
 
 // ── Serve frontend in production ──────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {

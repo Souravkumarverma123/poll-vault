@@ -7,7 +7,7 @@ const { authLimiter } = require('../middleware/rateLimiter');
 
 router.post('/register', authLimiter, validateRegister, register);
 router.post('/login', authLimiter, validateLogin, login);
-router.post('/refresh', refresh);
+router.post('/refresh', authLimiter, refresh);
 router.post('/logout', protect, logout);
 router.get('/me', protect, getMe);
 router.patch('/me', protect, updateProfile);

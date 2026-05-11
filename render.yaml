@@ -4,15 +4,17 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    healthCheckPath: /api/polls/public/nonexistent
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 8000
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false # Requires manual entry in Render dashboard
-      - key: JWT_SECRET
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: CLIENT_URL
         value: "https://pollvault.onrender.com" # Replace with actual Render URL if different

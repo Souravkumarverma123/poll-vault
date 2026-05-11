@@ -93,8 +93,8 @@ const refresh = async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('+password');
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id).select('refreshTokenVersion role name email');
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
