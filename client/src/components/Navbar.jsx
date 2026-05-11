@@ -10,14 +10,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { BarChart3, LogOut, LayoutDashboard, Plus, Menu, X, Moon, Sun, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
+import api from '@/api/axios';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await api.get('/system/config');
+        if (res.data?.data?.announcementMessage) {
+          setAnnouncement(res.data.data.announcementMessage);
+        }
+      } catch (err) {
+        console.error('Failed to fetch system config');
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -25,7 +41,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <>
+      {announcement && (
+        <div className="bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground animate-fade-in">
+          {announcement}
+        </div>
+      )}
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-70">
@@ -196,5 +218,6 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    </>
   );
 }

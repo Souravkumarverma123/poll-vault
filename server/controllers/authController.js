@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const SystemSettings = require('../models/SystemSettings');
 const jwt = require('jsonwebtoken');
 const { generateAccessToken, generateRefreshToken, setCookies, clearCookies } = require('../utils/generateToken');
 
@@ -7,6 +8,14 @@ const { generateAccessToken, generateRefreshToken, setCookies, clearCookies } = 
 // @access  Public
 const register = async (req, res, next) => {
   try {
+    let settings = await SystemSettings.findOne();
+    if (settings && settings.allowRegistrations === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'Sign-ups are currently closed. Please try again later.',
+      });
+    }
+
     const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });

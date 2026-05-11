@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Poll = require('../models/Poll');
 const Response = require('../models/Response');
+const SystemSettings = require('../models/SystemSettings');
 
 // @desc    Get global system statistics for admin dashboard
 // @route   GET /api/admin/stats
@@ -207,6 +208,53 @@ const adminDeleteUser = async (req, res, next) => {
   }
 };
 
+// @desc    Get system settings (Admin)
+// @route   GET /api/admin/settings
+// @access  Private/Admin
+const getSystemSettings = async (req, res, next) => {
+  try {
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+      settings = await SystemSettings.create({});
+    }
+
+    res.json({
+      success: true,
+      data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update system settings (Admin)
+// @route   PATCH /api/admin/settings
+// @access  Private/Admin
+const updateSystemSettings = async (req, res, next) => {
+  try {
+    const { allowRegistrations, maintenanceMode, announcementMessage } = req.body;
+
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+      settings = new SystemSettings({});
+    }
+
+    if (allowRegistrations !== undefined) settings.allowRegistrations = allowRegistrations;
+    if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+    if (announcementMessage !== undefined) settings.announcementMessage = announcementMessage;
+
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: 'System settings updated successfully',
+      data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = { 
   getSystemStats, 
   getAllPolls, 
@@ -214,5 +262,7 @@ module.exports = {
   adminDeletePoll, 
   getAllUsers, 
   updateUserRole, 
-  adminDeleteUser 
+  adminDeleteUser,
+  getSystemSettings,
+  updateSystemSettings
 };

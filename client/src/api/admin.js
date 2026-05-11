@@ -9,3 +9,6 @@ export const adminDeletePoll = (id) => api.delete(`/admin/polls/${id}`);
 export const getAllUsers = (params) => api.get('/admin/users', { params });
 export const updateUserRole = (id, role) => api.patch(`/admin/users/${id}/role`, { role });
 export const adminDeleteUser = (id) => api.delete(`/admin/users/${id}`);
+
+export const getSystemSettings = () => api.get('/admin/settings');
+export const updateSystemSettings = (data) => api.patch('/admin/settings', data);

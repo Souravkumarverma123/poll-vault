@@ -7,7 +7,9 @@ const {
   adminDeletePoll,
   getAllUsers,
   updateUserRole,
-  adminDeleteUser
+  adminDeleteUser,
+  getSystemSettings,
+  updateSystemSettings
 } = require('../controllers/adminController');
 const { protect, isAdmin } = require('../middleware/auth');
 
@@ -15,6 +17,9 @@ router.use(protect);
 router.use(isAdmin);
 
 router.get('/stats', getSystemStats);
+
+router.get('/settings', getSystemSettings);
+router.patch('/settings', updateSystemSettings);
 
 router.get('/polls', getAllPolls);
 router.patch('/polls/:id/close', adminClosePoll);

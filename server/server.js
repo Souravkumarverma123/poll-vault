@@ -65,6 +65,7 @@ app.use(generalLimiter);
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/polls', require('./routes/pollRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/system', require('./routes/systemRoutes'));
 
 // Response-specific limiter is now attached inside pollRoutes.js
 
