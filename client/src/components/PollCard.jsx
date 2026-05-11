@@ -6,13 +6,16 @@ import { formatDistanceToNow } from 'date-fns';
 
 export default function PollCard({ poll }) {
   const navigate = useNavigate();
+  const isClosed = poll.status === 'closed' || poll.status === 'published';
   const expiryText = poll.expiresAt
     ? formatDistanceToNow(new Date(poll.expiresAt), { addSuffix: true })
     : 'No expiry';
 
   return (
     <Card
-      className="group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20"
+      className={`group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 ${
+        isClosed ? 'opacity-65 hover:opacity-90' : ''
+      }`}
       onClick={() => navigate(`/polls/${poll._id}`)}
     >
       <CardHeader className="pb-3">
@@ -36,7 +39,11 @@ export default function PollCard({ poll }) {
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
-            <span>{poll.status === 'closed' ? 'Expired' : `Expires ${expiryText}`}</span>
+            <span>
+              {poll.status === 'closed' || poll.status === 'published'
+                ? `Expired ${expiryText}`
+                : `Expires ${expiryText}`}
+            </span>
           </div>
         </div>
       </CardContent>
@@ -45,7 +52,10 @@ export default function PollCard({ poll }) {
           <span className="text-xs text-muted-foreground capitalize">
             {poll.responseMode} mode
           </span>
-          <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+          <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-colors">
+            View details
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+          </span>
         </div>
       </CardFooter>
     </Card>

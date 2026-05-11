@@ -14,7 +14,7 @@ export function Hero({ isAuthenticated }) {
     <section className="relative mx-auto max-w-7xl px-4 pt-32 pb-20 sm:px-6 sm:pt-40 lg:px-8 text-center overflow-hidden">
       <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80 animate-fade-in">
         <Zap className="h-4 w-4 text-primary" />
-        <span className="font-medium">PollVault 2.0 is now live</span>
+        <span className="font-medium">Real-time analytics &middot; Anonymous &amp; Authenticated modes</span>
       </div>
       <h1 className="text-5xl font-heading font-extrabold tracking-tight sm:text-7xl lg:text-8xl">
         <span className="inline-block animate-fade-in" style={{ animationDelay: '0ms' }}>Insights</span>{' '}
@@ -65,7 +65,39 @@ export function Hero({ isAuthenticated }) {
           </Dialog>
         )}
       </div>
-      
+      {/* Inline product preview — gives visitors a taste of the UI immediately */}
+      <div className="mt-16 animate-fade-in" style={{ animationDelay: '600ms' }}>
+        <div className="mx-auto max-w-xl rounded-2xl border border-border/60 bg-card/80 p-5 shadow-xl backdrop-blur-sm text-left">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-semibold">Favorite Framework?</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Active
+            </span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: 'React', pct: 52 },
+              { label: 'Vue',   pct: 28 },
+              { label: 'Svelte',pct: 20 },
+            ].map(({ label, pct }) => (
+              <div key={label}>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>{label}</span><span>{pct}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-foreground transition-all duration-700"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">247 responses &middot; Closes in 3 days</p>
+        </div>
+      </div>
+
       {/* Decorative background blur */}
       <div className="absolute top-1/2 left-1/2 -z-10 -translate-x-1/2 -translate-y-1/2">
         <div className="h-[400px] w-[600px] rounded-full bg-primary/5 blur-[120px]" />

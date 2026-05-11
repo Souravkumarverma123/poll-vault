@@ -19,15 +19,13 @@ const register = async (req, res, next) => {
 
     const user = await User.create({ name, email, password });
     const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-    setCookies(res, accessToken, refreshToken); // httpOnly cookies
+    const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
+    setCookies(res, accessToken, refreshToken);
 
     res.status(201).json({
       success: true,
       data: {
         user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-        // token intentionally NOT returned in body — use httpOnly cookie only.
-        // Socket.IO reads the cookie from the handshake headers automatically.
       },
     });
   } catch (error) {
@@ -53,15 +51,13 @@ const login = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-    setCookies(res, accessToken, refreshToken); // httpOnly cookies
+    const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
+    setCookies(res, accessToken, refreshToken);
 
     res.json({
       success: true,
       data: {
         user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-        // token intentionally NOT returned in body — use httpOnly cookie only.
-        // Socket.IO reads the cookie from the handshake headers automatically.
       },
     });
   } catch (error) {
@@ -72,9 +68,18 @@ const login = async (req, res, next) => {
 // @desc    Logout user — clear httpOnly cookie
 // @route   POST /api/auth/logout
 // @access  Private
-const logout = (req, res) => {
-  clearCookies(res);
-  res.json({ success: true, message: 'Logged out successfully' });
+const logout = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.refreshTokenVersion += 1;
+      await user.save();
+    }
+    clearCookies(res);
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // @desc    Refresh access token
@@ -89,13 +94,23 @@ const refresh = async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id).select('+password');
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
+    if (decoded.version !== user.refreshTokenVersion) {
+      user.refreshTokenVersion += 1;
+      await user.save();
+      return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+    }
+
+    const newVersion = user.refreshTokenVersion + 1;
+    user.refreshTokenVersion = newVersion;
+    await user.save();
+
     const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const refreshToken = generateRefreshToken(user._id, newVersion);
     setCookies(res, accessToken, refreshToken);
 
     res.json({ success: true, message: 'Token refreshed successfully' });

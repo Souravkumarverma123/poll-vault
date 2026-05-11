@@ -33,7 +33,7 @@ const initSocket = (server) => {
       // Try httpOnly cookie first
       const cookieHeader = socket.request.headers.cookie || '';
       const cookies = parseCookies(cookieHeader);
-      const cookieToken = cookies['pollvault_token'];
+      const cookieToken = cookies['pollvault_access_token'];
 
       // Fallback: token passed via socket.auth (for programmatic use)
       const authToken = socket.handshake.auth?.token;

@@ -99,7 +99,11 @@ export default function ResponseForm({ questions, onSubmit, loading }) {
                     {q.options.map((opt, oIndex) => (
                       <div
                         key={oIndex}
-                        className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-all ${ans?.selectedOption === opt ? 'border-primary bg-primary/5' : ''}`}
+                        className={`flex items-center gap-3 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
+                          ans?.selectedOption === opt
+                            ? 'border-primary bg-primary/10 shadow-sm'
+                            : 'border-transparent bg-muted/30'
+                        }`}
                         onClick={() => handleSingle(q._id, opt)}
                       >
                         <RadioGroupItem value={opt} id={`${q._id}-${oIndex}`} />
@@ -118,7 +122,11 @@ export default function ResponseForm({ questions, onSubmit, loading }) {
                     return (
                       <div
                         key={oIndex}
-                        className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-all ${isChecked ? 'border-primary bg-primary/5' : ''}`}
+                        className={`flex items-center gap-3 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
+                          isChecked
+                            ? 'border-primary bg-primary/10 shadow-sm'
+                            : 'border-transparent bg-muted/30'
+                        }`}
                         onClick={() => handleMultiple(q._id, opt, !isChecked)}
                       >
                         <Checkbox

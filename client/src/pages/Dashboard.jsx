@@ -28,7 +28,7 @@ export default function Dashboard() {
       setPolls(res.data.data.polls);
       setPagination(res.data.data.pagination);
       if (res.data.data.summaryStats) setSummaryStats(res.data.data.summaryStats);
-    } catch (err) {
+    } catch {
       setError('Failed to load polls. Please try again.');
     } finally {
       setLoading(false);
@@ -40,36 +40,49 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [fetchPolls, search]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, sort, statusFilter]);
+  // Handlers for filters that should reset to page 1
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
+  
+  const handleStatusFilterChange = (val) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
+  
+  const handleSortChange = (val) => {
+    setSort(val);
+    setPage(1);
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 pt-10 pb-16 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold">My Polls</h1>
-          <p className="text-muted-foreground mt-1">Manage and monitor all your polls</p>
-        </div>
-        <Button asChild>
-          <Link to="/polls/create"><Plus className="mr-2 h-4 w-4" />Create Poll</Link>
-        </Button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-heading font-bold">My Polls</h1>
+        <p className="text-muted-foreground mt-1">Manage and monitor all your polls</p>
       </div>
 
       {/* Summary Stats */}
       {summaryStats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
-            { icon: FileText, label: 'Total Polls', value: summaryStats.totalPolls, color: 'text-blue-500' },
-            { icon: Zap, label: 'Active Polls', value: summaryStats.activePolls, color: 'text-emerald-500' },
-            { icon: Users, label: 'Total Responses', value: summaryStats.totalResponses, color: 'text-purple-500' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="flex items-center gap-4 rounded-xl border bg-card p-5">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-muted`}>
-                <Icon className={`h-5 w-5 ${color}`} />
+            { icon: FileText, label: 'Total Polls',     value: summaryStats.totalPolls },
+            { icon: Zap,      label: 'Active Polls',    value: summaryStats.activePolls },
+            { icon: Users,    label: 'Total Responses', value: summaryStats.totalResponses, highlight: true },
+          ].map(({ icon: Icon, label, value, highlight }) => (
+            <div
+              key={label}
+              className={`flex items-center gap-4 rounded-xl border bg-card p-5 ${
+                highlight ? 'border-primary/30 bg-primary/5' : ''
+              }`}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                <Icon className="h-5 w-5 text-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{value}</p>
+                <p className={`text-2xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </div>
@@ -84,11 +97,11 @@ export default function Dashboard() {
           <Input
             placeholder="Search polls..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -99,7 +112,7 @@ export default function Dashboard() {
             <SelectItem value="published">Published</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={setSort}>
+        <Select value={sort} onValueChange={handleSortChange}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>

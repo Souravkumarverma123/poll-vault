@@ -7,8 +7,7 @@ import ResultsView from '@/components/ResultsView';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, XCircle, Lock, BarChart3, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, Lock, BarChart3, Users, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -146,17 +145,16 @@ export default function PublicRespond() {
   }
 
   // Active — show form
+  const estimatedMinutes = Math.max(1, Math.ceil(poll.questions.length * 0.5));
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="mx-auto max-w-2xl px-4 py-12 pb-16">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-          <BarChart3 className="h-6 w-6 text-primary" />
-        </div>
         <h1 className="text-2xl font-bold sm:text-3xl">{poll.title}</h1>
         {poll.description && <p className="mt-2 text-muted-foreground">{poll.description}</p>}
 
-        {/* Respondent count + expiry — social proof */}
-        <div className="mt-4 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        {/* Meta row: respondent count + expiry + estimated time */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
           {poll.totalResponses > 0 && (
             <span className="flex items-center gap-1.5">
               <Users className="h-4 w-4" />
@@ -164,10 +162,15 @@ export default function PublicRespond() {
             </span>
           )}
           {poll.expiresAt && (
-            <span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
               Closes {formatDistanceToNow(new Date(poll.expiresAt), { addSuffix: true })}
             </span>
           )}
+          <span className="flex items-center gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            ~{estimatedMinutes} min
+          </span>
         </div>
       </div>
       <ResponseForm questions={poll.questions} onSubmit={handleSubmit} loading={submitting} />
