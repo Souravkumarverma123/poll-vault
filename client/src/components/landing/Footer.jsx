@@ -50,16 +50,22 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-24 pt-8 border-t border-border/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-foreground/80 font-medium">
-            © {new Date().getFullYear()} PollVault Inc. All rights reserved.
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm font-medium">
+            <p className="text-foreground/80">
+              © {new Date().getFullYear()} PollVault Inc. All rights reserved.
+            </p>
+            <span className="hidden sm:inline text-muted-foreground/40">|</span>
+            <p className="text-muted-foreground hover:text-foreground transition-colors">
+              Created by Sourav Kumar
+            </p>
+          </div>
           <div className="flex gap-3">
-            <div className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm border border-border/50 flex items-center justify-center hover:bg-background/80 hover:scale-105 transition-all cursor-pointer">
+            <a href="https://x.com/SouravKuma74938" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm border border-border/50 flex items-center justify-center hover:bg-background/80 hover:scale-105 transition-all cursor-pointer">
               <span className="text-sm font-semibold text-foreground">𝕏</span>
-            </div>
-            <div className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm border border-border/50 flex items-center justify-center hover:bg-background/80 hover:scale-105 transition-all cursor-pointer">
+            </a>
+            <a href="https://www.linkedin.com/in/sourav-kumar-0a3103307/" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm border border-border/50 flex items-center justify-center hover:bg-background/80 hover:scale-105 transition-all cursor-pointer">
               <span className="text-sm font-semibold text-foreground">in</span>
-            </div>
+            </a>
           </div>
         </div>
       </div>
