@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +17,10 @@ import api from '@/api/axios';
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const isLandingPage = location.pathname === '/';
   const [announcement, setAnnouncement] = useState('');
 
   useEffect(() => {
@@ -47,39 +49,37 @@ export default function Navbar() {
           {announcement}
         </div>
       )}
-      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <nav className="fixed top-0 w-full z-50 bg-transparent">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-70">
-          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-foreground">
-            <BarChart3 className="h-4 w-4 text-background" />
-          </div>
-          <span className="text-xl font-heading font-bold tracking-tight">
-            PollVault
-          </span>
+          <img src="/logo.png" alt="PollVault Logo" className="h-8 w-auto" />
+          <span className="text-xl font-heading font-bold tracking-tight">PollVault</span>
         </Link>
 
         {/* Desktop Nav */}
         <div className="hidden items-center gap-3 md:flex">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="hover:bg-primary/10 transition-colors"
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
+          {!isLandingPage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="hover:bg-primary/10 transition-colors"
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+          )}
           {isAuthenticated ? (
             <>
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="ghost" size="sm" className="font-medium text-[14px] sm:text-[16px] tracking-wide" asChild>
                 <Link to="/dashboard">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
                 </Link>
               </Button>
-              <Button size="sm" asChild>
+              <Button size="sm" className="font-medium text-[14px] sm:text-[16px] tracking-wide" asChild>
                 <Link to="/polls/create">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Poll
@@ -125,10 +125,10 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="ghost" size="sm" className="font-medium text-[14px] sm:text-[16px] tracking-wide" asChild>
                 <Link to="/login">Log in</Link>
               </Button>
-              <Button size="sm" asChild>
+              <Button size="sm" className="font-medium text-[14px] sm:text-[16px] tracking-wide" asChild>
                 <Link to="/register">Get Started</Link>
               </Button>
             </>
@@ -137,15 +137,17 @@ export default function Navbar() {
 
         {/* Mobile menu and theme toggle */}
         <div className="flex items-center gap-2 md:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
+          {!isLandingPage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

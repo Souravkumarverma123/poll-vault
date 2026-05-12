@@ -59,8 +59,9 @@ export default function Register() {
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <BarChart3 className="h-6 w-6 text-primary-foreground" />
+          <div className="mx-auto mb-4 flex items-center justify-center gap-3">
+            <img src="/logo.png" alt="PollVault Logo" className="h-10 w-auto" />
+            <span className="text-3xl font-heading font-bold tracking-tight">PollVault</span>
           </div>
           <CardTitle className="text-2xl font-heading">Create an account</CardTitle>
           <CardDescription>Get started with PollVault</CardDescription>

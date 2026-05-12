@@ -31,7 +31,7 @@ export function Testimonials() {
         <div className="grid gap-8 md:grid-cols-3">
           {testimonials.map((t, i) => (
             <div key={i} className="relative rounded-2xl bg-background p-8 shadow-sm border border-border/50 hover:shadow-md transition-shadow group">
-              <div className="text-4xl text-primary/20 absolute top-4 left-4 font-serif transition-colors group-hover:text-primary/40">"</div>
+              <div className="text-4xl text-primary/20 absolute top-4 left-4 font-heading transition-colors group-hover:text-primary/40">"</div>
               <p className="relative z-10 text-muted-foreground mb-6 line-clamp-4 pt-2">
                 {t.quote}
               </p>
