@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [sort, setSort] = useState('newest');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [activeStat, setActiveStat] = useState(null);
 
   const fetchPolls = useCallback(async () => {
     setLoading(true);
@@ -57,7 +58,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-10 pb-16 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 pt-20 pb-16 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">My Polls</h1>
@@ -68,25 +69,31 @@ export default function Dashboard() {
       {summaryStats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
-            { icon: FileText, label: 'Total Polls',     value: summaryStats.totalPolls },
-            { icon: Zap,      label: 'Active Polls',    value: summaryStats.activePolls },
-            { icon: Users,    label: 'Total Responses', value: summaryStats.totalResponses, highlight: true },
-          ].map(({ icon: Icon, label, value, highlight }) => (
+            { icon: FileText, label: summaryStats.totalPolls === 1 ? 'Total Poll' : 'Total Polls',     value: summaryStats.totalPolls },
+            { icon: Zap,      label: summaryStats.activePolls === 1 ? 'Active Poll' : 'Active Polls',    value: summaryStats.activePolls },
+            { icon: Users,    label: summaryStats.totalResponses === 1 ? 'Total Response' : 'Total Responses', value: summaryStats.totalResponses },
+          ].map(({ icon: Icon, label, value }) => {
+            const highlight = activeStat === label;
+            return (
             <div
               key={label}
-              className={`flex items-center gap-4 rounded-xl border bg-card p-5 ${
-                highlight ? 'border-primary/30 bg-primary/5' : ''
+              onClick={() => setActiveStat(label)}
+              className={`group flex items-center gap-5 rounded-2xl border p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer ${
+                highlight ? 'border-primary/40 bg-primary/5 shadow-[0_0_30px_rgba(99,102,241,0.1)] hover:border-primary/60 hover:bg-primary/10' : 'bg-card/50 border-border/50 hover:border-border hover:bg-card'
               }`}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Icon className="h-5 w-5 text-foreground" />
+              <div className={`flex h-14 w-14 items-center justify-center rounded-xl transition-colors duration-300 ${
+                highlight ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground group-hover:text-foreground group-hover:bg-muted'
+              }`}>
+                <Icon className="h-6 w-6" />
               </div>
               <div>
-                <p className={`text-2xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
+                <p className={`text-3xl font-heading font-bold tracking-tight ${highlight ? 'text-primary' : ''}`}>{value}</p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -98,11 +105,11 @@ export default function Dashboard() {
             placeholder="Search polls..."
             value={search}
             onChange={handleSearchChange}
-            className="pl-9"
+            className="pl-9 bg-card/50 border-border/50 focus-visible:ring-primary/50 transition-colors hover:bg-card"
           />
         </div>
         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full sm:w-40 bg-card/50 border-border/50 transition-colors hover:bg-card focus:ring-primary/50">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -113,7 +120,7 @@ export default function Dashboard() {
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={handleSortChange}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full sm:w-40 bg-card/50 border-border/50 transition-colors hover:bg-card focus:ring-primary/50">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>

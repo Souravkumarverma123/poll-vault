@@ -7,14 +7,23 @@ import { formatDistanceToNow } from 'date-fns';
 export default function PollCard({ poll }) {
   const navigate = useNavigate();
   const isClosed = poll.status === 'closed' || poll.status === 'published';
-  const expiryText = poll.expiresAt
-    ? formatDistanceToNow(new Date(poll.expiresAt), { addSuffix: true })
-    : 'No expiry';
+  let expiryDisplay = 'No expiry';
+  if (poll.expiresAt) {
+    const isPast = new Date(poll.expiresAt) < new Date();
+    const distance = formatDistanceToNow(new Date(poll.expiresAt));
+    if (isClosed) {
+      expiryDisplay = isPast ? `Ended ${distance} ago` : 'Ended';
+    } else {
+      expiryDisplay = isPast ? `Ended ${distance} ago` : `Ends in ${distance}`;
+    }
+  } else if (isClosed) {
+    expiryDisplay = 'Ended';
+  }
 
   return (
     <Card
-      className={`group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 ${
-        isClosed ? 'opacity-65 hover:opacity-90' : ''
+      className={`group flex flex-col h-full cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40 bg-card/40 ${
+        isClosed ? 'opacity-70 hover:opacity-100' : ''
       }`}
       onClick={() => navigate(`/polls/${poll._id}`)}
     >
@@ -31,28 +40,24 @@ export default function PollCard({ poll }) {
           </p>
         )}
       </CardHeader>
-      <CardContent className="pb-3">
+      <CardContent className="pb-5 flex-1">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Users className="h-4 w-4" />
-            <span>{poll.responseCount || 0} responses</span>
+            <span>{poll.responseCount || 0} response{(poll.responseCount || 0) === 1 ? '' : 's'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
-            <span>
-              {poll.status === 'closed' || poll.status === 'published'
-                ? `Expired ${expiryText}`
-                : `Expires ${expiryText}`}
-            </span>
+            <span>{expiryDisplay}</span>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-0">
+      <CardFooter className="pt-4 pb-4 border-t border-border/40 mt-auto bg-muted/10">
         <div className="flex w-full items-center justify-between">
-          <span className="text-xs text-muted-foreground capitalize">
+          <span className="text-xs font-medium text-muted-foreground capitalize">
             {poll.responseMode} mode
           </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-colors">
+          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
             View details
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </span>
