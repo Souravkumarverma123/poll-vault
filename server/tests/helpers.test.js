@@ -27,13 +27,16 @@ describe('Helper Utilities', () => {
   });
 
   describe('generateFingerprint', () => {
-    it('generates a consistent sha256 hash for the same IP and UA', () => {
+    // Helper mirrors the implementation: ip::ua::token (token defaults to '')
+    const makeHash = (ip, ua, token = '') =>
+      crypto.createHash('sha256').update(`${ip}::${ua}::${token}`).digest('hex');
+
+    it('generates a consistent sha256 hash for the same IP and UA (no token)', () => {
       const req = {
         ip: '192.168.1.1',
         headers: { 'user-agent': 'Mozilla/5.0' },
       };
-      const expectedHash = crypto.createHash('sha256').update('192.168.1.1::Mozilla/5.0').digest('hex');
-      expect(generateFingerprint(req)).toBe(expectedHash);
+      expect(generateFingerprint(req)).toBe(makeHash('192.168.1.1', 'Mozilla/5.0'));
     });
 
     it('falls back to connection.remoteAddress if ip is undefined', () => {
@@ -41,14 +44,29 @@ describe('Helper Utilities', () => {
         connection: { remoteAddress: '10.0.0.1' },
         headers: { 'user-agent': 'Safari' },
       };
-      const expectedHash = crypto.createHash('sha256').update('10.0.0.1::Safari').digest('hex');
-      expect(generateFingerprint(req)).toBe(expectedHash);
+      expect(generateFingerprint(req)).toBe(makeHash('10.0.0.1', 'Safari'));
     });
 
     it('uses "unknown" if ip/remoteAddress and user-agent are missing', () => {
       const req = { headers: {} };
-      const expectedHash = crypto.createHash('sha256').update('unknown::unknown').digest('hex');
-      expect(generateFingerprint(req)).toBe(expectedHash);
+      expect(generateFingerprint(req)).toBe(makeHash('unknown', 'unknown'));
+    });
+
+    it('produces a different hash when a clientToken is supplied', () => {
+      const req = { ip: '1.2.3.4', headers: { 'user-agent': 'Chrome' } };
+      const withoutToken = generateFingerprint(req);
+      const withToken    = generateFingerprint(req, 'my-uuid-token');
+      expect(withToken).not.toBe(withoutToken);
+      expect(withToken).toBe(makeHash('1.2.3.4', 'Chrome', 'my-uuid-token'));
+    });
+
+    it('clamps clientToken to 64 characters before hashing', () => {
+      const req = { ip: '1.2.3.4', headers: { 'user-agent': 'Chrome' } };
+      const longToken  = 'a'.repeat(200);
+      const shortToken = 'a'.repeat(64);
+      expect(generateFingerprint(req, longToken)).toBe(
+        generateFingerprint(req, shortToken)
+      );
     });
   });
 });

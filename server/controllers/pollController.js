@@ -397,18 +397,26 @@ const submitResponse = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'You must be logged in to respond to this poll.' });
     }
 
-    // Duplicate check for authenticated
-    if (poll.responseMode === 'authenticated' && req.user) {
+    // ── Duplicate check (authenticated) ─────────────────────────────────────
+    // Always block re-submission for logged-in users, regardless of responseMode.
+    // Previously only checked when responseMode === 'authenticated', which left
+    // authenticated users free to submit unlimited times to anonymous polls.
+    if (req.user) {
       const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
       if (existingResponse) {
         return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
       }
     }
 
-    // Server-generated fingerprint for anonymous spam prevention
-    const serverFingerprint = !req.user ? generateFingerprint(req) : null;
+    // ── Duplicate check (anonymous) via server fingerprint ───────────────────
+    // Fingerprint = SHA-256(IP :: UA :: clientToken). The clientToken is a
+    // persistent UUID generated in the respondent's browser (localStorage) and
+    // sent in the request body. It dramatically reduces bypass via incognito /
+    // different browser on the same device.
+    const serverFingerprint = !req.user
+      ? generateFingerprint(req, req.body.respondentToken)
+      : null;
 
-    // Duplicate check for anonymous via fingerprint
     if (serverFingerprint) {
       const existingAnon = await Response.findOne({ poll: poll._id, clientFingerprint: serverFingerprint });
       if (existingAnon) {

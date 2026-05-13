@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPublicPoll, submitResponse } from '@/api/polls';
 import { useAuth } from '@/context/AuthContext';
@@ -20,6 +20,24 @@ export default function PublicRespond() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  // Persistent respondent token — generated once per device, stored in
+  // localStorage. Sent with every submission so the server can deduplicate
+  // anonymous responses even across incognito tabs or different browsers.
+  const respondentTokenRef = useRef('');
+  useEffect(() => {
+    const KEY = 'pv_respondent_token';
+    let token = localStorage.getItem(KEY);
+    if (!token) {
+      // crypto.randomUUID() is available in all modern browsers (2022+).
+      // Fall back to Math.random for very old environments.
+      token = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem(KEY, token);
+    }
+    respondentTokenRef.current = token;
+  }, []);
+
   useEffect(() => {
     const fetch = async () => {
       try {
@@ -37,7 +55,10 @@ export default function PublicRespond() {
   const handleSubmit = async (answers) => {
     setSubmitting(true);
     try {
-      await submitResponse(poll._id, { answers });
+      await submitResponse(poll._id, {
+        answers,
+        respondentToken: respondentTokenRef.current,
+      });
       setSubmitted(true);
       toast.success('Response submitted!');
     } catch (err) {

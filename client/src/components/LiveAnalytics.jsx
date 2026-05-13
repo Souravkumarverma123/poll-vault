@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSocket } from '@/context/SocketContext';
+import { useSocket, useSocketConnected } from '@/context/SocketContext';
 import { getAnalytics } from '@/api/polls';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Users, TrendingUp, MessageSquare } from 'lucide-react';
@@ -27,7 +27,10 @@ const ACCENT_COLORS = [
 ];
 
 export default function LiveAnalytics({ pollId }) {
-  const socket = useSocket(); // singleton — no new connection created
+  const socket = useSocket();         // socket instance (or null before connect)
+  useSocketConnected();               // ← subscribe to connected state so this
+                                      //   component re-renders when socket goes
+                                      //   null → instance, triggering the join.
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const joinedRef = useRef(false);
@@ -47,12 +50,18 @@ export default function LiveAnalytics({ pollId }) {
     fetchData();
   }, [pollId]);
 
-  // Use singleton socket — join room, listen for live analytics updates.
-  // Design notes:
-  //  1. joinedRef guards against emitting join:poll twice on the same connection
-  //     (once from the connected-state check + once from the 'connect' listener).
-  //  2. On reconnect, Socket.IO fires 'connect' again — joinedRef is reset in the
-  //     cleanup so the new connection correctly re-joins the room.
+  // Join the socket room for live analytics updates.
+  //
+  // Why useSocketConnected() above is necessary:
+  //   useSocket() reads socketRef.current (a ref, not state). Refs don't trigger
+  //   re-renders when mutated. Without subscribing to the connected state, this
+  //   component would render with socket=null on first mount, the effect would
+  //   exit early, and would never retry — even after the socket connected.
+  //
+  // Reconnect strategy:
+  //   Socket.IO fires 'connect' on every (re)connect. We always re-join the room
+  //   on 'connect' by resetting joinedRef first. This handles the case where an
+  //   expired access token caused the previous join to be rejected silently.
   useEffect(() => {
     if (!socket) return;
 
@@ -63,9 +72,11 @@ export default function LiveAnalytics({ pollId }) {
       }
     };
 
-    // Re-join on every reconnect (Socket.IO fires 'connect' on each reconnect)
-    const handleReconnectJoin = () => {
-      joinedRef.current = false; // reset so joinRoom() emits again
+    // On every reconnect: reset guard and re-join.
+    // This is critical — after a network drop + reconnect, Socket.IO fires
+    // 'connect' again. Without re-joining, the socket is no longer in the room.
+    const handleConnect = () => {
+      joinedRef.current = false;
       joinRoom();
     };
 
@@ -74,7 +85,9 @@ export default function LiveAnalytics({ pollId }) {
         if (!prev) return prev;
         const updatedQuestions = prev.questions.map((q) => {
           if (q.questionType === 'text') return q; // text not aggregated in real-time
-          const stats = payload.questionStats.find((s) => s.questionId === q._id);
+          const stats = payload.questionStats.find(
+            (s) => String(s.questionId) === String(q._id)
+          );
           if (!stats) return q;
           return {
             ...q,
@@ -88,18 +101,30 @@ export default function LiveAnalytics({ pollId }) {
       });
     };
 
-    // If already connected, join immediately; otherwise wait for 'connect'
+    // Surface server-side join rejections (e.g. expired JWT after token refresh,
+    // or attempting to view a poll you don't own). Without this handler, the
+    // socket silently stops receiving 'response:new' events.
+    const handleError = (err) => {
+      console.warn('[LiveAnalytics] Socket error:', err?.message);
+      joinedRef.current = false; // allow retry on next connect
+    };
+
+    // If already connected when this effect runs, join immediately.
+    // This is the common case when the user navigates to an existing poll page.
     if (socket.connected) {
       joinRoom();
     }
-    socket.on('connect', handleReconnectJoin);
+
+    socket.on('connect', handleConnect);
     socket.on('response:new', handleNewResponse);
+    socket.on('error', handleError);
 
     return () => {
-      socket.off('connect', handleReconnectJoin);
+      socket.off('connect', handleConnect);
       socket.off('response:new', handleNewResponse);
+      socket.off('error', handleError);
       socket.emit('leave:poll', { pollId });
-      joinedRef.current = false; // reset so a future mount re-joins correctly
+      joinedRef.current = false;
     };
   }, [socket, pollId]);
 
