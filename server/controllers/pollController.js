@@ -99,7 +99,7 @@ const createPoll = async (req, res, next) => {
     const { title, description, questions, responseMode, expiresAt } = req.body;
 
     // Normalise in case client sends a legacy value (defensive)
-    const mode = normalizeResponseMode(responseMode || 'anonymous');
+    const mode = responseMode || 'anonymous';
 
     const poll = await Poll.create({
       creator: req.user._id,
@@ -365,7 +365,7 @@ const getPublicPoll = async (req, res, next) => {
       title: poll.title,
       description: poll.description,
       questions: poll.questions,
-      responseMode: normalizeResponseMode(poll.responseMode),
+      responseMode: poll.responseMode,
       expiresAt: poll.expiresAt,
       isPublished: poll.isPublished,
       status,
@@ -505,7 +505,7 @@ const getAnalytics = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const mode = normalizeResponseMode(poll.responseMode);
+    const mode = poll.responseMode;
     const analytics = await aggregateAnalytics(poll._id);
 
     // For named polls: build a respondent map so we can show who voted for what
