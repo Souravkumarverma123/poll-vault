@@ -46,7 +46,7 @@ const initSocket = (server) => {
         return next();
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       socket.user = { id: decoded.id };
       next();
     } catch {
