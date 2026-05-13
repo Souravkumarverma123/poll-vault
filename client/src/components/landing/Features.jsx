@@ -10,7 +10,7 @@ const features = [
   { 
     icon: Shield, 
     title: 'Flexible Privacy', 
-    desc: 'Choose anonymous or authenticated modes per poll.',
+    desc: 'Choose Anonymous (aggregate only) or Named Roll-Call mode — you decide whether respondents are visible.',
     className: 'md:col-span-1'
   },
   { 

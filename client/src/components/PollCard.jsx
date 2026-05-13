@@ -54,8 +54,10 @@ export default function PollCard({ poll }) {
       </CardContent>
       <CardFooter className="pt-4 pb-4 border-t border-border/40 mt-auto bg-muted/10">
         <div className="flex w-full items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground capitalize">
-            {poll.responseMode} mode
+          <span className="text-xs font-medium text-muted-foreground">
+            {poll.responseMode === 'named'
+              ? '👥 Named (Roll-Call)'
+              : '🔒 Anonymous'}
           </span>
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
             View details

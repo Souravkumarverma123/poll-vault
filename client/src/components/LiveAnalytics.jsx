@@ -27,11 +27,10 @@ const ACCENT_COLORS = [
 ];
 
 export default function LiveAnalytics({ pollId }) {
-  const socket = useSocket();         // socket instance (or null before connect)
-  useSocketConnected();               // ← subscribe to connected state so this
-                                      //   component re-renders when socket goes
-                                      //   null → instance, triggering the join.
+  const socket = useSocket();
+  useSocketConnected();
   const [data, setData] = useState(null);
+  const [responseMode, setResponseMode] = useState('anonymous');
   const [loading, setLoading] = useState(true);
   const joinedRef = useRef(false);
 
@@ -41,6 +40,7 @@ export default function LiveAnalytics({ pollId }) {
       try {
         const res = await getAnalytics(pollId);
         setData(res.data.data);
+        setResponseMode(res.data.data.responseMode || 'anonymous');
       } catch (err) {
         console.error('Failed to fetch analytics:', err);
       } finally {
@@ -229,17 +229,32 @@ export default function LiveAnalytics({ pollId }) {
               </Tabs>
               <div className="mt-4 space-y-2">
                 {q.options.map((opt, oi) => (
-                  <div key={oi} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-3 w-3 rounded"
-                        style={{ backgroundColor: ACCENT_COLORS[oi % ACCENT_COLORS.length] }}
-                      />
-                      {opt.optionText}
-                    </span>
-                    <span className={`tabular-nums ${opt.count === 0 ? 'text-muted-foreground/50' : 'text-foreground'}`}>
-                      {opt.count} ({opt.percentage}%)
-                    </span>
+                  <div key={oi} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-3 w-3 rounded"
+                          style={{ backgroundColor: ACCENT_COLORS[oi % ACCENT_COLORS.length] }}
+                        />
+                        {opt.optionText}
+                      </span>
+                      <span className={`tabular-nums ${opt.count === 0 ? 'text-muted-foreground/50' : 'text-foreground'}`}>
+                        {opt.count} ({opt.percentage}%)
+                      </span>
+                    </div>
+                    {/* Roll-call: show respondent names for named polls */}
+                    {responseMode === 'named' && opt.respondents && opt.respondents.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pl-5">
+                        {opt.respondents.map((r) => (
+                          <span
+                            key={r._id}
+                            className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground"
+                          >
+                            {r.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

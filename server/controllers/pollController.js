@@ -1,9 +1,24 @@
-const crypto = require('crypto');
 const Poll = require('../models/Poll');
 const Response = require('../models/Response');
 const { nanoid } = require('nanoid');
 const { getIO } = require('../socket/socketHandler');
-const { generateFingerprint, computeStatus } = require('../utils/helpers');
+const { computeStatus } = require('../utils/helpers');
+
+/**
+ * Normalises legacy responseMode values to the new semantics.
+ *
+ * Old → New mapping (soft migration — runs in code until DB is migrated):
+ *   'authenticated'  → 'anonymous'  (auth required, identity hidden)
+ *   'anonymous'      → 'named'      (now auth required, creator sees who voted)
+ *
+ * Once migrateResponseMode.js has been run against the DB, only 'named' and
+ * 'anonymous' will exist and this helper becomes a no-op identity function.
+ */
+const normalizeResponseMode = (mode) => {
+  if (mode === 'authenticated') return 'anonymous';
+  if (mode === 'named' || mode === 'anonymous') return mode;
+  return 'named'; // safe fallback for any unrecognised legacy value
+};
 
 // ── Helper: aggregate analytics for a poll ───────────────────────────────────
 const aggregateAnalytics = async (pollId) => {
@@ -97,13 +112,16 @@ const createPoll = async (req, res, next) => {
   try {
     const { title, description, questions, responseMode, expiresAt } = req.body;
 
+    // Normalise in case client sends a legacy value (defensive)
+    const mode = normalizeResponseMode(responseMode || 'anonymous');
+
     const poll = await Poll.create({
       creator: req.user._id,
       shareId: nanoid(10),
       title,
       description: description || '',
       questions,
-      responseMode: responseMode || 'anonymous',
+      responseMode: mode,
       expiresAt: new Date(expiresAt),
     });
 
@@ -361,7 +379,7 @@ const getPublicPoll = async (req, res, next) => {
       title: poll.title,
       description: poll.description,
       questions: poll.questions,
-      responseMode: poll.responseMode,
+      responseMode: normalizeResponseMode(poll.responseMode),
       expiresAt: poll.expiresAt,
       isPublished: poll.isPublished,
       status,
@@ -393,36 +411,24 @@ const submitResponse = async (req, res, next) => {
     if (poll.isClosed || poll.expiresAt <= new Date()) {
       return res.status(410).json({ success: false, message: 'This poll is no longer accepting responses.' });
     }
-    if (poll.responseMode === 'authenticated' && !req.user) {
-      return res.status(401).json({ success: false, message: 'You must be logged in to respond to this poll.' });
-    }
+  // ── Auth required for all polls ─────────────────────────────────────────
+  // Every poll now requires a logged-in account. Deduplication is handled
+  // entirely by the unique { poll, user } DB index — no fingerprinting needed.
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'You must be logged in to respond to this poll.',
+    });
+  }
 
-    // ── Duplicate check (authenticated) ─────────────────────────────────────
-    // Always block re-submission for logged-in users, regardless of responseMode.
-    // Previously only checked when responseMode === 'authenticated', which left
-    // authenticated users free to submit unlimited times to anonymous polls.
-    if (req.user) {
-      const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
-      if (existingResponse) {
-        return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
-      }
-    }
-
-    // ── Duplicate check (anonymous) via server fingerprint ───────────────────
-    // Fingerprint = SHA-256(IP :: UA :: clientToken). The clientToken is a
-    // persistent UUID generated in the respondent's browser (localStorage) and
-    // sent in the request body. It dramatically reduces bypass via incognito /
-    // different browser on the same device.
-    const serverFingerprint = !req.user
-      ? generateFingerprint(req, req.body.respondentToken)
-      : null;
-
-    if (serverFingerprint) {
-      const existingAnon = await Response.findOne({ poll: poll._id, clientFingerprint: serverFingerprint });
-      if (existingAnon) {
-        return res.status(409).json({ success: false, message: 'You have already submitted a response to this poll.' });
-      }
-    }
+  // ── Duplicate check ──────────────────────────────────────────────────────
+  const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
+  if (existingResponse) {
+    return res.status(409).json({
+      success: false,
+      message: 'You have already submitted a response to this poll.',
+    });
+  }
 
     const { answers } = req.body;
 
@@ -472,8 +478,7 @@ const submitResponse = async (req, res, next) => {
 
     await Response.create({
       poll: poll._id,
-      user: req.user ? req.user._id : null,
-      clientFingerprint: serverFingerprint,
+      user: req.user._id,
       answers,
     });
 
@@ -514,10 +519,40 @@ const getAnalytics = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
+    const mode = normalizeResponseMode(poll.responseMode);
     const analytics = await aggregateAnalytics(poll._id);
 
-    const questionsWithStats = poll.questions.map(q => {
-      const stats = analytics.questionStats.find(s => s.questionId.toString() === q._id.toString());
+    // For named polls: build a respondent map so we can show who voted for what
+    let respondentMap = {}; // { questionId: { optionText: [{_id, name}] } }
+    if (mode === 'named') {
+      const responses = await Response.find({ poll: poll._id })
+        .populate('user', 'name')
+        .lean();
+
+      responses.forEach((response) => {
+        if (!response.user) return;
+        response.answers.forEach((answer) => {
+          const qId = answer.questionId.toString();
+          if (!respondentMap[qId]) respondentMap[qId] = {};
+
+          const addRespondent = (optionText) => {
+            if (!respondentMap[qId][optionText]) respondentMap[qId][optionText] = [];
+            respondentMap[qId][optionText].push({
+              _id: response.user._id,
+              name: response.user.name,
+            });
+          };
+
+          if (answer.selectedOption) addRespondent(answer.selectedOption);
+          if (answer.selectedOptions?.length) answer.selectedOptions.forEach(addRespondent);
+        });
+      });
+    }
+
+    const questionsWithStats = poll.questions.map((q) => {
+      const qIdStr = q._id.toString();
+      const stats = analytics.questionStats.find((s) => s.questionId.toString() === qIdStr);
+
       if (q.questionType === 'text') {
         return {
           _id: q._id,
@@ -528,25 +563,34 @@ const getAnalytics = async (req, res, next) => {
           totalForQuestion: stats ? stats.totalForQuestion : 0,
         };
       }
+
       return {
         _id: q._id,
         questionText: q.questionText,
         questionType: q.questionType || 'single',
-        options: q.options.map(optText => {
-          const optStat = stats ? stats.options.find(o => o.optionText === optText) : null;
+        isRequired: q.isRequired,
+        options: q.options.map((optText) => {
+          const optStat = stats ? stats.options.find((o) => o.optionText === optText) : null;
           return {
             optionText: optText,
             count: optStat ? optStat.count : 0,
             percentage: optStat ? optStat.percentage : 0,
+            // Only included for named polls — undefined for anonymous
+            respondents: mode === 'named'
+              ? (respondentMap[qIdStr]?.[optText] || [])
+              : undefined,
           };
         }),
-        isRequired: q.isRequired,
       };
     });
 
     res.json({
       success: true,
-      data: { totalResponses: analytics.totalResponses, questions: questionsWithStats },
+      data: {
+        totalResponses: analytics.totalResponses,
+        responseMode: mode,
+        questions: questionsWithStats,
+      },
     });
   } catch (error) {
     next(error);

@@ -7,9 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { Loader2, ArrowLeft, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { addDays, addMonths, addYears } from 'date-fns';
@@ -141,15 +138,57 @@ export default function CreatePoll() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <Label>Authenticated Responses</Label>
-                <p className="text-sm text-muted-foreground">Require respondents to log in</p>
+          {/* Response Mode */}
+            <div className="space-y-3">
+              <Label>Response Mode</Label>
+              <p className="text-xs text-muted-foreground -mt-1">
+                All respondents must be logged in to submit a response.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* Anonymous option */}
+                <button
+                  type="button"
+                  onClick={() => setResponseMode('anonymous')}
+                  className={`rounded-lg border p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    responseMode === 'anonymous'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`h-3.5 w-3.5 rounded-full border-2 flex-shrink-0 ${responseMode === 'anonymous' ? 'border-primary bg-primary' : 'border-muted-foreground'}`} />
+                    <span className="font-medium text-sm">Anonymous</span>
+                    <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Default</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-5">
+                    Responses are private. You'll only see aggregate charts — no names.
+                  </p>
+                </button>
+
+                {/* Named option */}
+                <button
+                  type="button"
+                  onClick={() => setResponseMode('named')}
+                  className={`rounded-lg border p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    responseMode === 'named'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`h-3.5 w-3.5 rounded-full border-2 flex-shrink-0 ${responseMode === 'named' ? 'border-primary bg-primary' : 'border-muted-foreground'}`} />
+                    <span className="font-medium text-sm">Named (Roll-Call)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-5">
+                    You'll see exactly who voted for each option. Respondents are notified.
+                  </p>
+                </button>
               </div>
-              <Switch
-                checked={responseMode === 'authenticated'}
-                onCheckedChange={(checked) => setResponseMode(checked ? 'authenticated' : 'anonymous')}
-              />
+              {responseMode === 'named' && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+                  ⚠ Roll-call mode: respondents will be informed that you can see their name and specific choice before they submit.
+                </p>
+              )}
             </div>
 
             <div className="space-y-3">

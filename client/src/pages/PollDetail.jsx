@@ -220,7 +220,9 @@ export default function PollDetail() {
             <Shield className="h-5 w-5 text-muted-foreground" />
             <div>
               <p className="text-sm text-muted-foreground">Mode</p>
-              <p className="text-sm font-medium capitalize">{poll.responseMode}</p>
+              <p className="text-sm font-medium">
+                {poll.responseMode === 'named' ? 'Named (Roll-Call)' : 'Anonymous'}
+              </p>
             </div>
           </div>
         </CardContent>

@@ -8,7 +8,7 @@ const generateAccessToken = (userId) => {
 
 const generateRefreshToken = (userId, version = 0) => {
   return jwt.sign({ id: userId, version }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: '2d',
+    expiresIn: '30d',
   });
 };
 
@@ -29,7 +29,7 @@ const setCookies = (res, accessToken, refreshToken) => {
 
   res.cookie('pollvault_refresh_token', refreshToken, {
     ...cookieOptions,
-    maxAge: 2 * 24 * 60 * 60 * 1000, // 2 days
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 };
 
