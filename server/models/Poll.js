@@ -56,10 +56,7 @@ const pollSchema = new mongoose.Schema({
   },
   responseMode: {
     type: String,
-    // Phase 1 (soft migration): 'named' and 'anonymous' are the new values.
-    // 'authenticated' is kept temporarily so existing DB documents remain valid
-    // until the migration script (server/scripts/migrateResponseMode.js) is run.
-    enum: ['named', 'anonymous', 'authenticated'],
+    enum: ['named', 'anonymous'],
     default: 'anonymous',
   },
   isPublished: {

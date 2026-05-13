@@ -4,21 +4,7 @@ const { nanoid } = require('nanoid');
 const { getIO } = require('../socket/socketHandler');
 const { computeStatus } = require('../utils/helpers');
 
-/**
- * Normalises legacy responseMode values to the new semantics.
- *
- * Old → New mapping (soft migration — runs in code until DB is migrated):
- *   'authenticated'  → 'anonymous'  (auth required, identity hidden)
- *   'anonymous'      → 'named'      (now auth required, creator sees who voted)
- *
- * Once migrateResponseMode.js has been run against the DB, only 'named' and
- * 'anonymous' will exist and this helper becomes a no-op identity function.
- */
-const normalizeResponseMode = (mode) => {
-  if (mode === 'authenticated') return 'anonymous';
-  if (mode === 'named' || mode === 'anonymous') return mode;
-  return 'named'; // safe fallback for any unrecognised legacy value
-};
+
 
 // ── Helper: aggregate analytics for a poll ───────────────────────────────────
 const aggregateAnalytics = async (pollId) => {
