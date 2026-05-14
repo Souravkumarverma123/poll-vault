@@ -54,7 +54,7 @@ const validatePoll = [
     .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
   body('responseMode')
     .optional()
-    .isIn(['anonymous', 'authenticated']).withMessage('Response mode must be anonymous or authenticated'),
+    .isIn(['anonymous', 'named']).withMessage('Response mode must be anonymous or named'),
   body('expiresAt')
     .notEmpty().withMessage('Expiry date is required')
     .isISO8601().withMessage('Expiry date must be a valid date')

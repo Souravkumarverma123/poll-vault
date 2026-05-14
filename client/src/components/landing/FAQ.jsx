@@ -8,7 +8,7 @@ import {
 const faqs = [
   {
     question: "Do my respondents need an account to vote?",
-    answer: "No. You can create public polls that anyone with the link can answer anonymously. You also have the option to restrict polls to logged-in users only."
+    answer: "Yes. PollVault requires respondents to be logged in before submitting a response. This ensures one vote per person and eliminates spam — no fingerprinting or browser tricks needed."
   },
   {
     question: "Is there a limit to how many people can vote at once?",
@@ -19,8 +19,8 @@ const faqs = [
     answer: "Yes, admins can export full analytics and response data for any poll directly from the dashboard."
   },
   {
-    question: "How do you prevent spam voting?",
-    answer: "We use a combination of IP tracking, browser fingerprinting, and session cookies to ensure each person only votes once on anonymous polls."
+    question: "How do you prevent duplicate votes?",
+    answer: "Every response is tied to a verified account. Once a user submits a response, the database enforces a unique constraint — they simply cannot vote again on the same poll."
   }
 ];
 
@@ -31,7 +31,7 @@ export function FAQ() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-heading font-bold sm:text-4xl">Common questions</h2>
         </div>
-        <Accordion type="single" collapsible className="w-full">
+        <Accordion type="single" collapsible="true" className="w-full">
           {faqs.map((faq, i) => (
             <AccordionItem key={i} value={`item-${i}`} className="border-border/50">
               <AccordionTrigger className="text-left text-lg py-4 font-medium hover:text-primary transition-colors">
