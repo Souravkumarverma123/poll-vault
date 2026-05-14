@@ -165,7 +165,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl py-8 animate-fade-in">
+    <div className="container mx-auto max-w-6xl pt-24 pb-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
