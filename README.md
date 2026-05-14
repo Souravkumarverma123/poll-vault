@@ -21,7 +21,7 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 ### 🛠️ Versatile Poll Creation
 - **Multi-Type Questions**: Mix and match single-choice, multiple-choice, and open-ended text questions within a single poll.
 - **Granular Controls**: Toggle required fields, set explicit expiration dates, and define response visibility.
-- **Response Modes**: Choose between `Anonymous` (anyone with the link) and `Authenticated` (requires a registered account).
+- **Response Modes**: Choose between `Anonymous` (requires login, identity hidden) and `Named` (requires login, creator sees who voted) to protect data integrity and prevent duplicate voting.
 
 ### ⚡ Real-Time Live Analytics
 - **Socket.IO Integration**: Poll creators receive instant, live updates on their dashboard the moment a respondent submits an answer.
@@ -30,12 +30,18 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 
 ### 👑 Role-Based Admin Dashboard
 - **RBAC**: Secure role-based access control protecting premium analytics routes and UI components.
+- **Platform Management**: Multi-tabbed configuration interface (Overview, Polls, Users, Settings) with system-wide controls like toggle-based user registration and an announcement banner system.
 - **Global Metrics**: Admins get exclusive access to a premium dashboard displaying platform-wide user registrations, poll statuses, and total responses.
 - **CLI Seeder**: Included developer script to instantly promote any user to an admin via the terminal.
 
+### ✨ Premium "Tech-Forward Minimalist" Design
+- **Custom Typography**: Implements Universal Sans for a highly legible, modern, and distinctive typographic hierarchy.
+- **Theme-Aware UI**: Beautiful dark/light mode execution with subtle glassmorphism and dynamic micro-animations.
+- **Polished Dashboards**: Standardized component spacing and layout hierarchies ensuring a cohesive, high-performance professional experience across all views.
+
 ### 🛡️ Enterprise-Grade Security & Anti-Abuse
 - **Access & Refresh Tokens**: Robust authentication architecture utilizing short-lived (15m) access tokens and long-lived (2d) refresh tokens, both stored exclusively as secure `httpOnly` cookies to prevent XSS attacks. Includes a seamless, silent background refresh mechanism via an Axios interceptor.
-- **Server-Side Fingerprinting**: Anonymous polls use a robust SHA-256 hash of the respondent's `IP` and `User-Agent` to prevent duplicate submissions and ballot stuffing. Enforced via MongoDB compound unique indexes.
+- **Strict Authentication**: Mandatory user authentication for all poll responses. Legacy fingerprinting has been replaced by a fully deterministic auth-first architecture to enforce voting integrity.
 - **Environment-Aware Rate Limiting**: Dedicated rate limiters for authentication (protecting login/register endpoints), submissions, and general API requests. Properly configured for reverse proxies (`trust proxy`) to protect against brute-force and DDoS attacks.
 - **Helmet & CORS**: Strict Content Security Policies (CSP) and Cross-Origin Resource Sharing rules.
 - **Data Lifecycle Management**: MongoDB Time-To-Live (TTL) indexes automatically purge abandoned responses 30 days after submission to prevent unbounded database growth.
