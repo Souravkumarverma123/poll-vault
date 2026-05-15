@@ -102,7 +102,7 @@ export default function EditPoll() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pt-10 pb-12 sm:px-6">
-      <BackButton fallback={`/polls/${id}`} className="mb-4" label="Back to Poll" />
+      <BackButton to={`/polls/${id}`} className="mb-4" label="Back to Poll" />
 
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Edit Poll</h1>

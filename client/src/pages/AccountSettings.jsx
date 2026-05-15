@@ -102,7 +102,7 @@ export default function AccountSettings() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-10 pb-16 sm:px-6">
-      <BackButton fallback="/dashboard" className="mb-4" label="Dashboard" />
+      <BackButton to="/dashboard" className="mb-4" label="Dashboard" />
 
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Account Settings</h1>

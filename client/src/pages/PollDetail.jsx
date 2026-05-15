@@ -100,7 +100,7 @@ export default function PollDetail() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <BackButton fallback="/dashboard" className="mb-4" label="Dashboard" />
+      <BackButton to="/dashboard" className="mb-4" label="Dashboard" />
 
       {/* Poll Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">

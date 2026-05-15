@@ -21,9 +21,7 @@ export default function PublicRespond() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
-  // For named polls: require the respondent to acknowledge the roll-call notice
-  // before the form appears. Initialized to true for anonymous polls (no warning needed).
-  const [warningAccepted, setWarningAccepted] = useState(false);
+
 
   useEffect(() => {
     const fetch = async () => {
@@ -31,8 +29,6 @@ export default function PublicRespond() {
         const res = await getPublicPoll(shareId);
         const p = res.data.data.poll;
         setPoll(p);
-        // Anonymous polls skip the warning screen
-        if (p.responseMode !== 'named') setWarningAccepted(true);
       } catch (err) {
         setError(err.response?.status === 404 ? 'Poll not found' : 'Failed to load poll');
       } finally {
@@ -132,40 +128,6 @@ export default function PublicRespond() {
               </Button>
               <Button variant="outline" asChild>
                 <Link to="/register">Sign up</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // ── Named poll warning ─────────────────────────────────────────────────────
-  // Shown before the form for named (roll-call) polls so respondents know
-  // the creator will see their name and exact choice.
-  if (poll.responseMode === 'named' && !warningAccepted) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="p-8">
-            <Eye className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Named Poll</h2>
-            <p className="text-muted-foreground mb-2">
-              This is a <strong>roll-call poll</strong>. The creator will be able to see:
-            </p>
-            <ul className="text-sm text-muted-foreground text-left space-y-1 mb-6 bg-muted/40 rounded-lg px-4 py-3">
-              <li>✓ Your name</li>
-              <li>✓ Exactly which option(s) you selected</li>
-            </ul>
-            <p className="text-xs text-muted-foreground mb-6">
-              Your responses will not be anonymous. Continue only if you agree.
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={() => setWarningAccepted(true)}>
-                I understand, continue
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to="/">Go back</Link>
               </Button>
             </div>
           </CardContent>
