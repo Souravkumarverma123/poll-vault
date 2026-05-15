@@ -472,6 +472,12 @@ const submitResponse = async (req, res, next) => {
         totalResponses: analytics.totalResponses,
         questionStats: analytics.questionStats,
       });
+
+      // Also emit to the creator's personal room so the main dashboard can update its stats
+      io.to(`user_${poll.creator.toString()}`).emit('dashboard:update', {
+        pollId: poll._id,
+        totalResponses: analytics.totalResponses,
+      });
     } catch (socketError) {
       console.error('Socket emit error:', socketError.message);
     }

@@ -58,6 +58,10 @@ const initSocket = (server) => {
   io.on('connection', (socket) => {
     console.log(`[socket] Connected: ${socket.id} (user: ${socket.user?.id || 'anonymous'})`);
 
+    if (socket.user?.id) {
+      socket.join(`user_${socket.user.id}`);
+    }
+
     // Creator joins their poll room for live analytics
     socket.on('join:poll', async (data) => {
       try {

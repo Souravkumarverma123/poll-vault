@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyPolls } from '@/api/polls';
+import { useSocket } from '@/context/SocketContext';
 import PollCard from '@/components/PollCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [activeStat, setActiveStat] = useState(null);
+  const socket = useSocket();
 
   const fetchPolls = useCallback(async () => {
     setLoading(true);
@@ -40,6 +42,31 @@ export default function Dashboard() {
     const timer = setTimeout(fetchPolls, search ? 350 : 0);
     return () => clearTimeout(timer);
   }, [fetchPolls]); // eslint-disable-line react-hooks/exhaustive-deps — search is captured via fetchPolls
+
+  // Real-time dashboard updates
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleDashboardUpdate = (data) => {
+      // Update poll list count
+      setPolls((prev) =>
+        prev.map((p) => (p._id === data.pollId ? { ...p, responseCount: data.totalResponses } : p))
+      );
+      
+      // Update total summary stats if they exist
+      setSummaryStats((prev) => {
+        if (!prev) return prev;
+        // We increment totalResponses by comparing the new count vs old count, 
+        // but since we only get the *new* count for a specific poll, 
+        // it's easier to just re-fetch the summary stats, or simply increment it by 1 
+        // assuming each event is exactly 1 new response.
+        return { ...prev, totalResponses: prev.totalResponses + 1 };
+      });
+    };
+
+    socket.on('dashboard:update', handleDashboardUpdate);
+    return () => socket.off('dashboard:update', handleDashboardUpdate);
+  }, [socket]);
 
   // Handlers for filters that should reset to page 1
   const handleSearchChange = (e) => {
