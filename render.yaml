@@ -8,13 +8,29 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
       - key: PORT
         value: 8000
+
+      # Set MONGO_URI manually in the Render dashboard — never commit real credentials
       - key: MONGO_URI
-        sync: false # Requires manual entry in Render dashboard
+        sync: false
+
+      # FIX #5: Changed from `generateValue: true` to `sync: false` for both JWT secrets.
+      #
+      # `generateValue: true` caused Render to generate a NEW random secret on every
+      # deployment, which invalidated ALL active user sessions platform-wide on every push.
+      # Users would be silently logged out after every deploy with no warning.
+      #
+      # `sync: false` means these values must be set ONCE manually in the Render dashboard
+      # and are then persisted across all future deployments. Run `openssl rand -hex 64`
+      # to generate each secret, then paste the values into the Render env var panel.
       - key: JWT_ACCESS_SECRET
-        generateValue: true
+        sync: false
+
       - key: JWT_REFRESH_SECRET
-        generateValue: true
+        sync: false
+
+      # The full public URL of this Render service — used for CORS origin whitelisting
       - key: CLIENT_URL
-        value: "https://pollvault.onrender.com" # Replace with actual Render URL if different
+        value: "https://pollvault.onrender.com"

@@ -12,7 +12,7 @@
 
 <br />
 
-PollVault empowers creators to build engaging, multi-type questionnaires, securely collect responses (anonymously or via authentication), and monitor real-time, live-updating analytics through a premium, interactive dashboard.
+PollVault empowers creators to build engaging, multi-type questionnaires, securely collect responses, and monitor live-updating analytics through a premium, interactive dashboard.
 
 ---
 
@@ -26,7 +26,7 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 ### ⚡ Real-Time Live Analytics
 - **Socket.IO Integration**: Poll creators receive instant, live updates on their dashboard the moment a respondent submits an answer.
 - **Targeted Broadcasting**: Uses Socket.IO rooms (`poll_${id}`) to ensure data is only pushed to authorized creators currently viewing the analytics page.
-- **Dynamic Visualizations**: Beautiful, interactive Bar and Doughnut charts powered by `Chart.js`.
+- **Dynamic Visualizations**: Beautiful, interactive Bar and Doughnut charts powered by `Chart.js`, with full theme-awareness for dark/light mode execution.
 
 ### 👑 Role-Based Admin Dashboard
 - **RBAC**: Secure role-based access control protecting premium analytics routes and UI components.
@@ -36,19 +36,19 @@ PollVault empowers creators to build engaging, multi-type questionnaires, secure
 
 ### ✨ Premium "Tech-Forward Minimalist" Design
 - **Custom Typography**: Implements Universal Sans for a highly legible, modern, and distinctive typographic hierarchy.
-- **Theme-Aware UI**: Beautiful dark/light mode execution with subtle glassmorphism and dynamic micro-animations.
-- **Polished Dashboards**: Standardized component spacing and layout hierarchies ensuring a cohesive, high-performance professional experience across all views.
+- **Theme-Aware UI**: Beautiful dark/light mode execution via `next-themes` with subtle glassmorphism and dynamic micro-animations.
+- **Polished Dashboards**: Standardized component spacing, fixed navigation layouts, and robust CSS variable offset management ensuring a cohesive, high-performance professional experience across all views.
 
 ### 🛡️ Enterprise-Grade Security & Anti-Abuse
-- **Access & Refresh Tokens**: Robust authentication architecture utilizing short-lived (15m) access tokens and long-lived (2d) refresh tokens, both stored exclusively as secure `httpOnly` cookies to prevent XSS attacks. Includes a seamless, silent background refresh mechanism via an Axios interceptor.
-- **Strict Authentication**: Mandatory user authentication for all poll responses. Legacy fingerprinting has been replaced by a fully deterministic auth-first architecture to enforce voting integrity.
-- **Environment-Aware Rate Limiting**: Dedicated rate limiters for authentication (protecting login/register endpoints), submissions, and general API requests. Properly configured for reverse proxies (`trust proxy`) to protect against brute-force and DDoS attacks.
-- **Helmet & CORS**: Strict Content Security Policies (CSP) and Cross-Origin Resource Sharing rules.
+- **Access & Refresh Tokens**: Robust authentication architecture utilizing short-lived (15m) access tokens and long-lived (30d) refresh tokens, both stored exclusively as secure `httpOnly` cookies to prevent XSS attacks.
+- **Version Invalidation**: Refresh tokens use a version incrementing mechanism enabling immediate session revocation upon password changes or remote logouts.
+- **Strict Authentication**: Mandatory user authentication for all poll responses. A deterministic auth-first architecture enforcing voting integrity via compound unique database indexes.
+- **Environment-Aware Rate Limiting**: Dedicated rate limiters for authentication (protecting login/register endpoints), submissions, and general API requests. Properly configured for reverse proxies (`trust proxy`).
 - **Data Lifecycle Management**: MongoDB Time-To-Live (TTL) indexes automatically purge abandoned responses 30 days after submission to prevent unbounded database growth.
+- **ES Modules Architecture**: Backend runs entirely on modern ES Modules (`import`/`export`), preventing module isolation issues.
 
 ### 🚀 High-Performance Architecture
-- **Optimized MongoDB Aggregations**: Dashboard statistics utilize targeted `$lookup` and `$group` aggregations (O(1) database operations) rather than pulling raw documents into Node.js memory.
-- **N+1 Query Elimination**: Carefully tuned controllers ensure that fetching paginated polls alongside their response counts requires minimal database trips.
+- **Optimized MongoDB Aggregations**: Dashboard statistics utilize targeted `$lookup` and `$group` aggregations (O(1) database operations) rather than pulling raw documents into Node.js memory, eliminating N+1 query patterns.
 
 ---
 
@@ -60,11 +60,11 @@ PollVault uses a decoupled client-server architecture managed as a single monore
 graph TD
     subgraph Frontend [Client - React/Vite]
         UI[shadcn/ui + Tailwind]
-        State[React Context]
+        State[React Context + next-themes]
         Charts[Chart.js]
     end
 
-    subgraph Backend [Server - Node/Express]
+    subgraph Backend [Server - Node/ESM/Express]
         REST[REST API Controllers]
         WS[Socket.IO Singleton]
         Auth[JWT + httpOnly Cookies]
@@ -94,20 +94,20 @@ poll-vault/
 │   ├── src/
 │   │   ├── api/            # Axios instance and API service wrappers
 │   │   ├── components/     # Reusable UI components (shadcn, forms, charts)
-│   │   ├── context/        # Auth and Socket.IO React Context providers
+│   │   ├── context/        # Auth, Theme, and Socket.IO React Context providers
 │   │   ├── lib/            # Utilities (e.g., Chart.js global setup)
 │   │   └── pages/          # Full-page routing components
 │   └── vite.config.js      # Vite config with API proxy proxy
-├── server/                 # Backend Express Application
+├── server/                 # Backend Express Application (ES Modules)
 │   ├── config/             # Database connection setup
 │   ├── controllers/        # Core business logic and aggregations
 │   ├── middleware/         # Auth, validation (express-validator), error handling
 │   ├── models/             # Mongoose schemas (User, Poll, Response)
 │   ├── routes/             # Express router definitions
-│   ├── scripts/            # CLI utilities (e.g., makeAdmin.js)
+│   ├── scripts/            # CLI utilities (makeAdmin.js, migrateResponseMode.js)
 │   ├── socket/             # WebSocket initialization and event handlers
-│   ├── tests/              # Jest unit tests for pure functions
-│   └── utils/              # Helper functions (fingerprinting, JWT generation)
+│   ├── tests/              # Jest test suites (API Endpoints, Helpers, Auth)
+│   └── utils/              # Helper functions (JWT generation)
 ├── Dockerfile              # Production multi-stage Docker build
 ├── render.yaml             # Render Blueprint for 1-click deployment
 └── package.json            # Monorepo orchestration (concurrently)
@@ -132,9 +132,10 @@ npm run install:all
 ### 2. Environment Variables
 Create a `.env` file in the root directory:
 ```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/pollvault
-JWT_SECRET=your_super_secret_jwt_key_at_least_32_chars
+PORT=8000
+MONGO_URI=mongodb://localhost:27017/pollvault
+JWT_ACCESS_SECRET=your_super_secret_access_key
+JWT_REFRESH_SECRET=your_super_secret_refresh_key
 CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 ```
@@ -145,10 +146,10 @@ Using `concurrently`, this command starts the backend and waits for the API heal
 npm run dev
 ```
 - Frontend: [http://localhost:5173](http://localhost:5173)
-- Backend: [http://localhost:5000](http://localhost:5000)
+- Backend: [http://localhost:8000](http://localhost:8000)
 
 ### 4. Run Tests
-The backend includes Jest and Supertest integration tests for authentication flows, cookie generation, and rate limiting.
+The backend includes a comprehensive Jest and Supertest suite that tests full lifecycle scenarios across Auth, Admin, Polls, and System configuration endpoints. Since the backend utilizes ES Modules, tests run in experimental VM mode.
 ```bash
 cd server
 npm test
@@ -160,6 +161,12 @@ To access the premium Admin Dashboard, you must promote your account to the `adm
 node server/scripts/makeAdmin.js your_email@example.com
 ```
 
+### 6. Run Database Migrations (If Updating)
+If migrating from an older version of PollVault, run the response mode migration script:
+```bash
+node server/scripts/migrateResponseMode.js
+```
+
 ---
 
 ## 🚢 Deployment
@@ -167,7 +174,7 @@ node server/scripts/makeAdmin.js your_email@example.com
 PollVault is strictly engineered for production environments.
 
 ### Option A: Render (1-Click Deploy)
-Link your GitHub repository to [Render](https://render.com) and use the provided `render.yaml` Blueprint to automatically provision the web service. You will only need to supply the `MONGODB_URI` securely in the Render dashboard.
+Link your GitHub repository to [Render](https://render.com) and use the provided `render.yaml` Blueprint to automatically provision the web service. You will only need to supply the `MONGO_URI` securely in the Render dashboard.
 
 ### Option B: Docker
 A multi-stage `Dockerfile` is included to build and serve the entire application from a single lightweight Node Alpine container.
@@ -187,12 +194,12 @@ docker run -p 8000:8000 --env-file .env poll-vault-prod
 
 - **Frontend Core**: React 18, Vite, React Router v6.
 - **Styling**: Tailwind CSS, `shadcn/ui`, `lucide-react` icons.
-- **Backend Core**: Node.js, Express.js.
+- **Backend Core**: Node.js, Express.js (ES Modules).
 - **Database**: MongoDB, Mongoose ODM.
 - **Real-Time**: Socket.IO (v4).
 - **Security**: `bcryptjs`, `jsonwebtoken`, `helmet`, `express-rate-limit`, `cookie-parser`.
 - **Validation**: `express-validator`.
-- **Testing**: `jest`, `supertest`, `mongodb-memory-server`.
+- **Testing**: `jest`, `@jest/globals`, `supertest`, `mongodb-memory-server`.
 
 ---
 

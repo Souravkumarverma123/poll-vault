@@ -1,6 +1,6 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const Poll = require('../models/Poll');
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import Poll from '../models/Poll.js';
 
 let io;
 
@@ -111,4 +111,4 @@ const getIO = () => {
   return io;
 };
 
-module.exports = { initSocket, getIO };
+export { initSocket, getIO };

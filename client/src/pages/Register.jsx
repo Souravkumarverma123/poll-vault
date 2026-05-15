@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,9 @@ export default function Register() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md animate-fade-in">
+      <div className="w-full max-w-md">
+        <BackButton fallback="/" className="mb-4" />
+        <Card className="animate-fade-in">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center justify-center gap-3">
             <img src="/logo.png" alt="PollVault Logo" className="h-10 w-auto" />
@@ -154,6 +157,7 @@ export default function Register() {
           </p>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

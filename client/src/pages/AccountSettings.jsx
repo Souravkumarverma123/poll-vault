@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/context/AuthContext';
 import { updateProfile, deleteAccount } from '@/api/auth';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
@@ -101,9 +102,7 @@ export default function AccountSettings() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-10 pb-16 sm:px-6">
-      <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate('/dashboard')}>
-        <ArrowLeft className="mr-2 h-4 w-4" />Dashboard
-      </Button>
+      <BackButton fallback="/dashboard" className="mb-4" label="Dashboard" />
 
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Account Settings</h1>
@@ -158,15 +157,15 @@ export default function AccountSettings() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
-                <Input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+                <Input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" maxLength={128} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
-                <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" />
+                <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" maxLength={128} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat new password" />
+                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat new password" maxLength={128} />
               </div>
               <Button type="submit" disabled={passwordLoading}>
                 {passwordLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Changing...</> : 'Change Password'}

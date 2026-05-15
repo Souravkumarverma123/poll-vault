@@ -8,22 +8,22 @@ import { Users, TrendingUp, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { sanitize } from '@/lib/utils';
 
-// Single-hue palette: slate/neutral gradient that matches the monochrome brand
+// Theme-aware chart palette — high contrast on both light and dark backgrounds
 const CHART_COLORS = [
-  'rgba(15, 15, 15, 0.85)',
-  'rgba(45, 45, 45, 0.80)',
-  'rgba(90, 90, 90, 0.75)',
-  'rgba(130, 130, 130, 0.70)',
-  'rgba(170, 170, 170, 0.65)',
-  'rgba(200, 200, 200, 0.60)',
-  'rgba(220, 220, 220, 0.55)',
-  'rgba(240, 240, 240, 0.50)',
+  'rgba(99, 102, 241, 0.85)',   // indigo
+  'rgba(234, 88, 12, 0.80)',    // orange
+  'rgba(16, 185, 129, 0.80)',   // emerald
+  'rgba(168, 85, 247, 0.80)',   // purple
+  'rgba(236, 72, 153, 0.80)',   // pink
+  'rgba(14, 165, 233, 0.80)',   // sky
+  'rgba(245, 158, 11, 0.75)',   // amber
+  'rgba(20, 184, 166, 0.75)',   // teal
 ];
 
-// Accent colors used only when dark-mode context is needed — kept for doughnut labels
+// Solid accent colors for doughnut chart labels and legend swatches
 const ACCENT_COLORS = [
-  '#1a1a1a', '#3d3d3d', '#666666', '#999999',
-  '#b3b3b3', '#cccccc', '#e0e0e0', '#f0f0f0',
+  '#6366f1', '#ea580c', '#10b981', '#a855f7',
+  '#ec4899', '#0ea5e9', '#f59e0b', '#14b8a6',
 ];
 
 export default function LiveAnalytics({ pollId }) {

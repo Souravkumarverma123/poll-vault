@@ -1,4 +1,4 @@
-const { body, validationResult } = require('express-validator');
+import { body, validationResult } from 'express-validator';
 
 // Handle validation errors
 const handleValidation = (req, res, next) => {
@@ -14,7 +14,7 @@ const handleValidation = (req, res, next) => {
 };
 
 // Registration validation
-const validateRegister = [
+export const validateRegister = [
   body('name')
     .trim()
     .notEmpty().withMessage('Name is required')
@@ -31,7 +31,7 @@ const validateRegister = [
 ];
 
 // Login validation
-const validateLogin = [
+export const validateLogin = [
   body('email')
     .trim()
     .notEmpty().withMessage('Email is required')
@@ -43,7 +43,7 @@ const validateLogin = [
 ];
 
 // Poll creation validation
-const validatePoll = [
+export const validatePoll = [
   body('title')
     .trim()
     .notEmpty().withMessage('Poll title is required')
@@ -90,7 +90,7 @@ const validatePoll = [
 // at the middleware layer because the required field depends on questionType,
 // which is stored in the DB (not in the request body). The controller (submitResponse)
 // performs the correct per-type validation with full question context.
-const validateResponse = [
+export const validateResponse = [
   body('answers')
     .isArray({ min: 1 }).withMessage('At least one answer is required'),
   body('answers.*.questionId')
@@ -101,7 +101,7 @@ const validateResponse = [
   body('answers.*').custom((answer) => {
     const hasField =
       answer.selectedOption != null ||
-      (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length >= 0) ||
+      (Array.isArray(answer.selectedOptions) && answer.selectedOptions.length > 0) ||
       answer.textAnswer != null;
     if (!hasField) {
       throw new Error('Each answer must include selectedOption, selectedOptions, or textAnswer');
@@ -110,10 +110,3 @@ const validateResponse = [
   }),
   handleValidation,
 ];
-
-module.exports = {
-  validateRegister,
-  validateLogin,
-  validatePoll,
-  validateResponse,
-};

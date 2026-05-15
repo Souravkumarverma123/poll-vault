@@ -1,12 +1,13 @@
 {
   "name": "pollvault-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "PollVault backend — Express + MongoDB + Socket.IO",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

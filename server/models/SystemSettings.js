@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const systemSettingsSchema = new mongoose.Schema(
   {
@@ -13,9 +13,10 @@ const systemSettingsSchema = new mongoose.Schema(
     announcementMessage: {
       type: String,
       default: '',
+      maxlength: [500, 'Announcement message cannot exceed 500 characters'],
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('SystemSettings', systemSettingsSchema);
+export default mongoose.model('SystemSettings', systemSettingsSchema);

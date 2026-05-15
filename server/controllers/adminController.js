@@ -1,7 +1,8 @@
-const User = require('../models/User');
-const Poll = require('../models/Poll');
-const Response = require('../models/Response');
-const SystemSettings = require('../models/SystemSettings');
+import User from '../models/User.js';
+import Poll from '../models/Poll.js';
+import Response from '../models/Response.js';
+import SystemSettings from '../models/SystemSettings.js';
+import { computeStatus } from '../utils/helpers.js';
 
 // @desc    Get global system statistics for admin dashboard
 // @route   GET /api/admin/stats
@@ -65,18 +66,11 @@ const getAllPolls = async (req, res, next) => {
     const countMap = {};
     responseCounts.forEach((r) => { countMap[r._id.toString()] = r.count; });
 
-    // We can't import computeStatus here due to circular dependency issues, so we replicate the simple logic
-    const pollsWithStats = polls.map((poll) => {
-      let status = 'active';
-      if (poll.isPublished) status = 'published';
-      else if (poll.isClosed || new Date(poll.expiresAt) <= new Date()) status = 'closed';
-
-      return {
-        ...poll,
-        responseCount: countMap[poll._id.toString()] || 0,
-        status,
-      };
-    });
+    const pollsWithStats = polls.map((poll) => ({
+      ...poll,
+      responseCount: countMap[poll._id.toString()] || 0,
+      status: computeStatus(poll),
+    }));
 
     res.json({
       success: true,
@@ -241,7 +235,12 @@ const updateSystemSettings = async (req, res, next) => {
 
     if (allowRegistrations !== undefined) settings.allowRegistrations = allowRegistrations;
     if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
-    if (announcementMessage !== undefined) settings.announcementMessage = announcementMessage;
+    if (announcementMessage !== undefined) {
+      if (typeof announcementMessage === 'string' && announcementMessage.length > 500) {
+        return res.status(400).json({ success: false, message: 'Announcement message cannot exceed 500 characters' });
+      }
+      settings.announcementMessage = announcementMessage;
+    }
 
     await settings.save();
 
@@ -255,7 +254,7 @@ const updateSystemSettings = async (req, res, next) => {
   }
 };
 
-module.exports = { 
+export {
   getSystemStats, 
   getAllPolls, 
   adminClosePoll, 

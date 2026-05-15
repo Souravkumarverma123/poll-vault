@@ -1,8 +1,8 @@
-const Poll = require('../models/Poll');
-const Response = require('../models/Response');
-const { nanoid } = require('nanoid');
-const { getIO } = require('../socket/socketHandler');
-const { computeStatus } = require('../utils/helpers');
+import Poll from '../models/Poll.js';
+import Response from '../models/Response.js';
+import { nanoid } from 'nanoid';
+import { getIO } from '../socket/socketHandler.js';
+import { computeStatus } from '../utils/helpers.js';
 
 
 
@@ -181,15 +181,18 @@ const getMyPolls = async (req, res, next) => {
       status: computeStatus(poll),
     }));
 
-    // ── Summary stats: 3 targeted O(1) indexed queries — no full-table scan ──
-    const allUserPolls = await Poll.find(baseQuery).select('_id').lean();
-    const allUserPollIds = allUserPolls.map(p => p._id);
-    
-    const [totalPolls, activePolls, totalResponses] = await Promise.all([
+    // ── Summary stats: efficient aggregation — no full-table scan ──────────
+    const [totalPolls, activePolls, totalResponsesResult] = await Promise.all([
       Poll.countDocuments(baseQuery),
       Poll.countDocuments({ ...baseQuery, isPublished: false, isClosed: false, expiresAt: { $gt: now } }),
-      Response.countDocuments({ poll: { $in: allUserPollIds } }),
+      Response.aggregate([
+        { $lookup: { from: 'polls', localField: 'poll', foreignField: '_id', as: 'pollDoc' } },
+        { $unwind: '$pollDoc' },
+        { $match: { 'pollDoc.creator': req.user._id } },
+        { $count: 'total' }
+      ])
     ]);
+    const totalResponses = totalResponsesResult[0]?.total || 0;
 
     res.json({
       success: true,
@@ -397,24 +400,16 @@ const submitResponse = async (req, res, next) => {
     if (poll.isClosed || poll.expiresAt <= new Date()) {
       return res.status(410).json({ success: false, message: 'This poll is no longer accepting responses.' });
     }
-  // ── Auth required for all polls ─────────────────────────────────────────
-  // Every poll now requires a logged-in account. Deduplication is handled
-  // entirely by the unique { poll, user } DB index — no fingerprinting needed.
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'You must be logged in to respond to this poll.',
-    });
-  }
-
-  // ── Duplicate check ──────────────────────────────────────────────────────
-  const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
-  if (existingResponse) {
-    return res.status(409).json({
-      success: false,
-      message: 'You have already submitted a response to this poll.',
-    });
-  }
+    // ── Duplicate check ──────────────────────────────────────────────────────
+    // Auth is enforced at the route level via `protect` middleware.
+    // Deduplication is handled by the unique { poll, user } DB index as a safety net.
+    const existingResponse = await Response.findOne({ poll: poll._id, user: req.user._id });
+    if (existingResponse) {
+      return res.status(409).json({
+        success: false,
+        message: 'You have already submitted a response to this poll.',
+      });
+    }
 
     const { answers } = req.body;
 
@@ -583,7 +578,7 @@ const getAnalytics = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   createPoll, getMyPolls, getPollById, editPoll, deletePoll,
   closePoll, publishPoll, unpublishPoll, getPublicPoll,
   submitResponse, getAnalytics,

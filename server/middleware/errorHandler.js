@@ -1,5 +1,11 @@
 const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
+  // In production, avoid logging full stack traces to stdout — a proper logging
+  // service should be used instead. In development, the stack trace is valuable.
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`[error] ${err.name}: ${err.message}`);
+  } else {
+    console.error(err.stack);
+  }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
@@ -42,11 +48,13 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Default server error
+  // Default server error — never leak raw error messages in production
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production'
+      ? 'Internal Server Error'
+      : (err.message || 'Internal Server Error'),
   });
 };
 
-module.exports = errorHandler;
+export default errorHandler;

@@ -11,11 +11,16 @@
  * Safe to re-run — updateMany on already-migrated values is a no-op.
  */
 
-const dotenv = require('dotenv');
-dotenv.config({ path: require('path').resolve(__dirname, '../../.env') });
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+import connectDB from '../config/db.js';
 
-const mongoose = require('mongoose');
-const connectDB = require('../config/db');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 (async () => {
   try {

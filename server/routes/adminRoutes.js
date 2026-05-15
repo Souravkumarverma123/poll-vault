@@ -1,6 +1,5 @@
-const express = require('express');
-const router = express.Router();
-const { 
+import express from 'express';
+import { 
   getSystemStats,
   getAllPolls,
   adminClosePoll,
@@ -10,8 +9,10 @@ const {
   adminDeleteUser,
   getSystemSettings,
   updateSystemSettings
-} = require('../controllers/adminController');
-const { protect, isAdmin } = require('../middleware/auth');
+} from '../controllers/adminController.js';
+import { protect, isAdmin } from '../middleware/auth.js';
+
+const router = express.Router();
 
 router.use(protect);
 router.use(isAdmin);
@@ -29,4 +30,4 @@ router.get('/users', getAllUsers);
 router.patch('/users/:id/role', updateUserRole);
 router.delete('/users/:id', adminDeleteUser);
 
-module.exports = router;
+export default router;

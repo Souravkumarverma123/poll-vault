@@ -39,7 +39,7 @@ export default function Dashboard() {
   useEffect(() => {
     const timer = setTimeout(fetchPolls, search ? 350 : 0);
     return () => clearTimeout(timer);
-  }, [fetchPolls, search]);
+  }, [fetchPolls]); // eslint-disable-line react-hooks/exhaustive-deps — search is captured via fetchPolls
 
   // Handlers for filters that should reset to page 1
   const handleSearchChange = (e) => {

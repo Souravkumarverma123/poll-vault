@@ -1,12 +1,12 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-const generateAccessToken = (userId) => {
+export const generateAccessToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, {
     expiresIn: '15m',
   });
 };
 
-const generateRefreshToken = (userId, version = 0) => {
+export const generateRefreshToken = (userId, version = 0) => {
   return jwt.sign({ id: userId, version }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: '30d',
   });
@@ -15,7 +15,7 @@ const generateRefreshToken = (userId, version = 0) => {
 /**
  * Set both Access and Refresh JWTs as httpOnly cookies on the response.
  */
-const setCookies = (res, accessToken, refreshToken) => {
+export const setCookies = (res, accessToken, refreshToken) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -33,7 +33,7 @@ const setCookies = (res, accessToken, refreshToken) => {
   });
 };
 
-const clearCookies = (res) => {
+export const clearCookies = (res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -44,5 +44,3 @@ const clearCookies = (res) => {
   res.cookie('pollvault_access_token', '', cookieOptions);
   res.cookie('pollvault_refresh_token', '', cookieOptions);
 };
-
-module.exports = { generateAccessToken, generateRefreshToken, setCookies, clearCookies };

@@ -1,7 +1,9 @@
-const User = require('../models/User');
-const SystemSettings = require('../models/SystemSettings');
-const jwt = require('jsonwebtoken');
-const { generateAccessToken, generateRefreshToken, setCookies, clearCookies } = require('../utils/generateToken');
+import User from '../models/User.js';
+import Poll from '../models/Poll.js';
+import Response from '../models/Response.js';
+import SystemSettings from '../models/SystemSettings.js';
+import jwt from 'jsonwebtoken';
+import { generateAccessToken, generateRefreshToken, setCookies, clearCookies } from '../utils/generateToken.js';
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -197,8 +199,6 @@ const deleteAccount = async (req, res, next) => {
     }
 
     // Cascade delete polls and responses
-    const Poll = require('../models/Poll');
-    const Response = require('../models/Response');
     const polls = await Poll.find({ creator: user._id });
     const pollIds = polls.map(p => p._id);
     await Response.deleteMany({ poll: { $in: pollIds } });
@@ -212,4 +212,4 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, refresh, getMe, updateProfile, deleteAccount };
+export { register, login, logout, refresh, getMe, updateProfile, deleteAccount };

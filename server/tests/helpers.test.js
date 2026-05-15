@@ -1,4 +1,4 @@
-const { computeStatus } = require('../utils/helpers');
+import { computeStatus } from '../utils/helpers.js';
 
 describe('Helper Utilities', () => {
   describe('computeStatus', () => {

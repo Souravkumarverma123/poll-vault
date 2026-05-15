@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 /**
  * Extract JWT from httpOnly cookie first, then Authorization header as fallback.
@@ -15,7 +15,7 @@ const extractToken = (req) => {
 };
 
 // Protect routes — require valid JWT
-const protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
@@ -35,7 +35,7 @@ const protect = async (req, res, next) => {
 };
 
 // Optional auth — attach user if token present, but don't block
-const optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   const token = extractToken(req);
 
   if (token) {
@@ -51,12 +51,10 @@ const optionalAuth = async (req, res, next) => {
 };
 
 // Admin only middleware
-const isAdmin = (req, res, next) => {
+export const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
   } else {
     res.status(403).json({ success: false, message: 'Not authorized as an admin' });
   }
 };
-
-module.exports = { protect, optionalAuth, isAdmin };

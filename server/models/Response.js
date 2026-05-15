@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const answerSchema = new mongoose.Schema({
   questionId: {
@@ -35,12 +35,6 @@ const responseSchema = new mongoose.Schema({
     ref: 'User',
     default: null,
   },
-  // Server-generated fingerprint (IP + User-Agent hash) — NOT trusted from client
-  clientFingerprint: {
-    type: String,
-    default: null,
-    index: true,
-  },
   answers: {
     type: [answerSchema],
     required: true,
@@ -57,14 +51,8 @@ responseSchema.index(
   { unique: true, sparse: true, partialFilterExpression: { user: { $ne: null } } }
 );
 
-// Enforce one response per anonymous fingerprint per poll (anti-spam)
-responseSchema.index(
-  { poll: 1, clientFingerprint: 1 },
-  { unique: true, sparse: true, partialFilterExpression: { clientFingerprint: { $ne: null } } }
-);
-
 // TTL Index: Automatically delete responses 30 days after submission
 // This prevents unbounded database growth for old/abandoned polls
 responseSchema.index({ submittedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
-module.exports = mongoose.model('Response', responseSchema);
+export default mongoose.model('Response', responseSchema);

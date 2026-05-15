@@ -1,8 +1,10 @@
-const request = require('supertest');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-const { app, server } = require('../server');
-const User = require('../models/User');
+import request from 'supertest';
+import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import { app, server } from '../server.js';
+import User from '../models/User.js';
+
+import { jest } from '@jest/globals';
 
 jest.setTimeout(60000);
 

@@ -1,16 +1,28 @@
-const dotenv = require('dotenv');
-dotenv.config({ path: require('path').resolve(__dirname, '../.env') });
+import dotenv from 'dotenv';
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import { fileURLToPath } from 'url';
 
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const cors = require('cors');
-const helmet = require('helmet');
-const cookieParser = require('cookie-parser');
-const { generalLimiter } = require('./middleware/rateLimiter');
-const connectDB = require('./config/db');
-const { initSocket } = require('./socket/socketHandler');
-const errorHandler = require('./middleware/errorHandler');
+// Resolve __dirname for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+import { generalLimiter } from './middleware/rateLimiter.js';
+import connectDB from './config/db.js';
+import { initSocket } from './socket/socketHandler.js';
+import errorHandler from './middleware/errorHandler.js';
+
+// Route imports
+import authRoutes from './routes/authRoutes.js';
+import pollRoutes from './routes/pollRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import systemRoutes from './routes/systemRoutes.js';
 
 // Connect to MongoDB
 connectDB();
@@ -62,10 +74,10 @@ app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
 app.use(generalLimiter);
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/polls', require('./routes/pollRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api/system', require('./routes/systemRoutes'));
+app.use('/api/auth', authRoutes);
+app.use('/api/polls', pollRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/system', systemRoutes);
 
 // Response-specific limiter is now attached inside pollRoutes.js
 
@@ -80,11 +92,11 @@ if (process.env.NODE_ENV === 'production') {
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     console.log(`[server] Running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   });
 }
 
-module.exports = { app, server };
+export { app, server };

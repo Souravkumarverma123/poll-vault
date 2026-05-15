@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { getPoll, editPoll } from '@/api/polls';
 import QuestionBuilder from '@/components/QuestionBuilder';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
@@ -101,9 +102,7 @@ export default function EditPoll() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pt-10 pb-12 sm:px-6">
-      <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate(`/polls/${id}`)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />Back to Poll
-      </Button>
+      <BackButton fallback={`/polls/${id}`} className="mb-4" label="Back to Poll" />
 
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Edit Poll</h1>

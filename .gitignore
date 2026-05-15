@@ -3,3 +3,9 @@ node_modules/
 client/dist/
 .DS_Store
 *.log
+
+# Trial/licensed fonts should not be committed to public repos
+*.ttf
+*.otf
+*.woff
+*.woff2

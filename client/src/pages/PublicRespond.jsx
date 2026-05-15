@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { getPublicPoll, submitResponse } from '@/api/polls';
 import { useAuth } from '@/context/AuthContext';
 import ResponseForm from '@/components/ResponseForm';
@@ -203,6 +204,7 @@ export default function PublicRespond() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 pb-16">
+      <BackButton fallback="/" className="mb-4" />
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold sm:text-3xl">{poll.title}</h1>
         {poll.description && <p className="mt-2 text-muted-foreground">{poll.description}</p>}

@@ -25,6 +25,12 @@ export default function AdminDashboard() {
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [error, setError] = useState(null);
 
+  // Pagination state for polls and users tabs (Issue #9)
+  const [pollsPagination, setPollsPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [usersPagination, setUsersPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [pollsPage, setPollsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+
   // Settings form state
   const [settingsForm, setSettingsForm] = useState({
     allowRegistrations: true,
@@ -50,11 +56,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchPolls = async () => {
+  const fetchPolls = async (page = pollsPage) => {
     try {
       setLoadingPolls(true);
-      const res = await getAllPolls({ limit: 100 });
+      const res = await getAllPolls({ page, limit: 20 });
       setPolls(res.data.data.polls);
+      setPollsPagination(res.data.data.pagination);
     } catch (err) {
       toast.error('Failed to load polls');
     } finally {
@@ -62,11 +69,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = usersPage) => {
     try {
       setLoadingUsers(true);
-      const res = await getAllUsers({ limit: 100 });
+      const res = await getAllUsers({ page, limit: 20 });
       setUsers(res.data.data.users);
+      setUsersPagination(res.data.data.pagination);
     } catch (err) {
       toast.error('Failed to load users');
     } finally {
@@ -117,7 +125,7 @@ export default function AdminDashboard() {
   const handleRoleChange = async (userId, newRole) => {
     try {
       await updateUserRole(userId, newRole);
-      toast.success(`User promoted to ${newRole}`);
+      toast.success(`User role updated to ${newRole}`);
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update role');
@@ -337,6 +345,17 @@ export default function AdminDashboard() {
                   </Table>
                 </div>
               )}
+              {/* Polls Pagination */}
+              {pollsPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/30">
+                  <p className="text-sm text-muted-foreground">Showing {polls.length} of {pollsPagination.total} polls</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={pollsPage <= 1} onClick={() => { const p = pollsPage - 1; setPollsPage(p); fetchPolls(p); }}>Previous</Button>
+                    <span className="flex items-center px-3 text-sm text-muted-foreground">{pollsPage} / {pollsPagination.totalPages}</span>
+                    <Button variant="outline" size="sm" disabled={pollsPage >= pollsPagination.totalPages} onClick={() => { const p = pollsPage + 1; setPollsPage(p); fetchPolls(p); }}>Next</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -383,6 +402,16 @@ export default function AdminDashboard() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuGroup>
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  {user.role === 'user' ? (
+                                    <DropdownMenuItem onClick={() => handleRoleChange(user._id, 'admin')}>
+                                      <Shield className="mr-2 h-4 w-4" /> Promote to Admin
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => handleRoleChange(user._id, 'user')}>
+                                      <ShieldOff className="mr-2 h-4 w-4" /> Demote to User
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleDeleteUser(user._id)} className="text-destructive focus:text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" /> Delete User
                                   </DropdownMenuItem>
@@ -394,6 +423,17 @@ export default function AdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              )}
+              {/* Users Pagination */}
+              {usersPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/30">
+                  <p className="text-sm text-muted-foreground">Showing {users.length} of {usersPagination.total} users</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={usersPage <= 1} onClick={() => { const p = usersPage - 1; setUsersPage(p); fetchUsers(p); }}>Previous</Button>
+                    <span className="flex items-center px-3 text-sm text-muted-foreground">{usersPage} / {usersPagination.totalPages}</span>
+                    <Button variant="outline" size="sm" disabled={usersPage >= usersPagination.totalPages} onClick={() => { const p = usersPage + 1; setUsersPage(p); fetchUsers(p); }}>Next</Button>
+                  </div>
                 </div>
               )}
             </CardContent>

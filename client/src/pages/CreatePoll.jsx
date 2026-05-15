@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { createPoll } from '@/api/polls';
 import QuestionBuilder from '@/components/QuestionBuilder';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
@@ -69,9 +70,7 @@ export default function CreatePoll() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pt-10 pb-12 sm:px-6">
-      <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />Back
-      </Button>
+      <BackButton fallback="/dashboard" className="mb-4" />
 
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Create a Poll</h1>

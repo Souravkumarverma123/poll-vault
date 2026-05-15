@@ -14,7 +14,7 @@ const QUESTION_TYPES = [
 
 export default function QuestionBuilder({ questions, setQuestions }) {
   const addQuestion = () => {
-    setQuestions([...questions, { questionText: '', questionType: 'single', options: ['', ''], isRequired: true }]);
+    setQuestions([...questions, { _uid: crypto.randomUUID(), questionText: '', questionType: 'single', options: ['', ''], isRequired: true }]);
   };
 
   const removeQuestion = (index) => {
@@ -67,7 +67,7 @@ export default function QuestionBuilder({ questions, setQuestions }) {
         const TypeIcon = typeInfo?.icon || Circle;
 
         return (
-          <Card key={qIndex} className="border-border/50 animate-fade-in">
+          <Card key={q._uid || qIndex} className="border-border/50 animate-fade-in">
             <CardHeader className="pb-3">
               <div className="flex items-start gap-3">
                 <GripVertical className="mt-2.5 h-5 w-5 shrink-0 text-muted-foreground/50" />

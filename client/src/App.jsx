@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { SocketProvider } from '@/context/SocketContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from 'next-themes';
 import Navbar from '@/components/Navbar';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
@@ -59,17 +60,19 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SocketProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-              <Navbar />
-              <AppRoutes />
-            </div>
-            <Toaster position="top-right" richColors />
-          </TooltipProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <AuthProvider>
+          <SocketProvider>
+            <TooltipProvider>
+              <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+                <Navbar />
+                <AppRoutes />
+              </div>
+              <Toaster position="top-right" richColors />
+            </TooltipProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

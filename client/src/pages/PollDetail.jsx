@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { BackButton } from '@/components/ui/BackButton';
 import { getPoll, deletePoll, publishPoll, unpublishPoll, closePoll } from '@/api/polls';
 import LiveAnalytics from '@/components/LiveAnalytics';
 import ShareLink from '@/components/ShareLink';
@@ -54,7 +55,10 @@ export default function PollDetail() {
     setUnpublishing(true);
     try {
       await unpublishPoll(id);
-      setPoll(p => ({ ...p, isPublished: false, isClosed: false, status: 'active' }));
+      setPoll(p => {
+        const isExpired = new Date(p.expiresAt) <= new Date();
+        return { ...p, isPublished: false, isClosed: false, status: isExpired ? 'closed' : 'active' };
+      });
       toast.success('Poll unpublished — responses are open again.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to unpublish');
@@ -96,9 +100,7 @@ export default function PollDetail() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate('/dashboard')}>
-        <ArrowLeft className="mr-2 h-4 w-4" />Dashboard
-      </Button>
+      <BackButton fallback="/dashboard" className="mb-4" label="Dashboard" />
 
       {/* Poll Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
